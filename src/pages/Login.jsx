@@ -8,6 +8,7 @@ import mascot1 from '../assets/mascot_1.png';
 import mascot3 from '../assets/mascot_3.png';
 import mascot4 from '../assets/mascot_4.png';
 import mascot5 from '../assets/mascot_5.png';
+import logo from '../assets/pucho_logo_login.png';
 
 
 // Floating Mascot Component (Individual Images)
@@ -116,7 +117,7 @@ const Login = () => {
                 {/* Left Side - Marketing (Visible on all devices) */}
                 <div className="flex flex-col items-center lg:items-start text-center lg:text-left space-y-6 lg:space-y-8 lg:pl-16 mb-2 lg:mb-0">
                     <div className="flex items-center gap-3">
-                        <img src="/src/assets/pucho_logo_login.png" alt="Pucho.ai" className="h-10 md:h-11" />
+                        <img src={logo} alt="Pucho.ai" className="h-10 md:h-11" />
                     </div>
                     <div className="space-y-4 md:space-y-6">
                         <div className="space-y-1">
