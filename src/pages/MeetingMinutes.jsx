@@ -11,6 +11,14 @@ const MeetingMinutes = () => {
 
     const isAdmin = user?.role?.toUpperCase() === 'ADMIN';
 
+    if (dataLoading && !bookings.length) {
+        return (
+            <div className="h-[400px] flex items-center justify-center">
+                <div className="w-12 h-12 border-4 border-[#4F27E9]/20 border-t-[#4F27E9] rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
     // Filter bookings that have MoM notes AND user is authorized to see them
     const minutesList = (bookings || []).filter(b => {
         if (!b.mom_notes) return false;
