@@ -48,6 +48,24 @@ const Register = () => {
     const [customDept, setCustomDept] = useState('');
     const [cooldown, setCooldown] = useState(0);
 
+    const WEBHOOK_URL = "https://studio.pucho.ai/api/v1/webhooks/fGjOoM7eciSpGACaz09jq";
+
+    const triggerWebhook = async (action, payload) => {
+        try {
+            await fetch(WEBHOOK_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action_type: action,
+                    ...payload
+                })
+            });
+            console.log(`[${action.toUpperCase()}] Webhook success`);
+        } catch (error) {
+            console.error(`[${action.toUpperCase()}] Webhook Error:`, error.message);
+        }
+    };
+
     // Cooldown Timer Logic
     React.useEffect(() => {
         let timer;
@@ -88,6 +106,16 @@ const Register = () => {
             
             if (result.success) {
                 showToast(result.message || 'Account created! Please login.', 'success');
+                
+                // Fire Webhook (Background)
+                triggerWebhook('register', {
+                    email: formData.email,
+                    full_name: formData.full_name,
+                    role: formData.role,
+                    department: finalDept,
+                    action: 'register'
+                }).catch(e => console.error("Webhook trace:", e.message));
+
                 setTimeout(() => {
                     navigate('/login');
                 }, 1500); // Small delay to let user see the toast
