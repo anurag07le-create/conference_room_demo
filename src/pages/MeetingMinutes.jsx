@@ -26,8 +26,12 @@ const MeetingMinutes = () => {
         
         const userEmail = user?.email?.toLowerCase();
         if (!userEmail) return false;
+
+        // Check 1: Is user the meeting creator?
+        const creatorEmail = (b.user_email || '').toLowerCase();
+        if (creatorEmail === userEmail) return true;
         
-        // Check if user is an attendee (Handle both string and array formats)
+        // Check 2: Is user an attendee? (Handle both string and array formats)
         const attendeeData = b.attendees || '';
         const attendeesSource = typeof attendeeData === 'string' ? attendeeData : JSON.stringify(attendeeData);
         return attendeesSource.toLowerCase().includes(userEmail);
