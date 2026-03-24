@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FileText, Calendar, Clock, MapPin, Search, ChevronRight, MessageSquare, Info } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import React, { useState } from 'react';
+import { FileText, Calendar, MapPin, Search, ChevronRight, MessageSquare, Info } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -113,7 +112,6 @@ const MeetingMinutes = () => {
                                         <h3 className="text-sm font-black text-gray-900 m-0 uppercase tracking-widest">Discussion Summary</h3>
                                     </div>
                                     
-                                    {/* The MoM content itself rendered properly */}
                                     <div 
                                         className="text-gray-700 leading-relaxed space-y-4 font-medium text-sm p-6 bg-gray-50/50 rounded-3xl border border-gray-50"
                                         dangerouslySetInnerHTML={{ __html: selectedMinutes.mom_notes }}
@@ -123,7 +121,7 @@ const MeetingMinutes = () => {
                                 <div className="mt-8 flex items-center gap-4 p-4 bg-indigo-50/30 rounded-3xl border border-indigo-50">
                                     <Info size={16} className="text-[#4F27E9] shrink-0" />
                                     <p className="text-[11px] font-bold text-indigo-700 leading-tight">
-                                        This summary was automatically sent to all {selectedMinutes.attendees} participants via email.
+                                        This summary was automatically sent to all {selectedMinutes.attendees || 'participants'} via email.
                                     </p>
                                 </div>
                             </div>
