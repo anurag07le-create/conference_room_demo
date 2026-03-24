@@ -118,11 +118,11 @@ export const AuthProvider = ({ children }) => {
             });
 
             if (error) {
-                // Return clear error messages specifically for Email Throttling
-                if (error.message.includes('over_email_send_rate_limit') || error.status === 429) {
+                // Precise error reporting for Rate Limits & Email send limits
+                if (error.status === 429 || error.message.includes('over_email_send_rate_limit')) {
                     return { 
                         success: false, 
-                        message: "Supabase Email Limit Hit. Please wait 15 mins or use a different email (e.g. " + email.replace('@', '+test@') + ")." 
+                        message: "Too many requests. For security, Supabase has throttled your IP/Email. Please wait 60s or use an alias (+test)." 
                     };
                 }
                 throw error;

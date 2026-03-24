@@ -46,10 +46,24 @@ const Register = () => {
 
     const [showOtherDept, setShowOtherDept] = useState(false);
     const [customDept, setCustomDept] = useState('');
+    const [cooldown, setCooldown] = useState(0);
+
+    // Cooldown Timer Logic
+    React.useEffect(() => {
+        let timer;
+        if (cooldown > 0) {
+            timer = setInterval(() => {
+                setCooldown(prev => prev - 1);
+            }, 1000);
+        }
+        return () => clearInterval(timer);
+    }, [cooldown]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (loading) return; // Silent guard for double-clicks
+        
+        // Final guard for double-clicks or cooldown
+        if (loading || cooldown > 0) return; 
         
         setError('');
         
@@ -74,17 +88,21 @@ const Register = () => {
             
             if (result.success) {
                 showToast(result.message || 'Account created! Entering dashboard...', 'success');
-                // Navigation will be handled by AuthContext state update
             } else {
                 setError(result.message || 'Registration failed.');
                 showToast(result.message || 'Registration failed', 'error');
-                setLoading(false); // Reset on failure
+                
+                // If it was a rate limit, start the cooldown to protect the user
+                if (result.message.includes("Too many requests")) {
+                    setCooldown(60);
+                }
+                setLoading(false);
             }
         } catch (err) {
             console.error('Unified signup failure:', err);
             setError(err.message || 'An unexpected error occurred during signup');
             showToast('Registration failed', 'error');
-            setLoading(false); // Reset on error
+            setLoading(false);
         }
     };
 
@@ -219,12 +237,12 @@ const Register = () => {
 
                             <button
                                 type="submit"
-                                disabled={loading}
+                                disabled={loading || cooldown > 0}
                                 className="w-full h-12 md:h-14 flex items-center justify-center gap-2 rounded-xl transition-all font-bold text-white shadow-xl disabled:opacity-70 mt-2"
                                 style={{ background: 'linear-gradient(180deg, #4F27E9 0%, #2A09B5 100%)', boxShadow: '0 10px 25px -5px rgba(79, 39, 233, 0.4)' }}
                             >
-                                {loading ? 'Creating...' : 'Sign Up Free'}
-                                {!loading && <ArrowRight className="w-5 h-5" strokeWidth={3} />}
+                                {loading ? 'Creating...' : cooldown > 0 ? `Wait ${cooldown}s...` : 'Sign Up Free'}
+                                {!loading && cooldown === 0 && <ArrowRight className="w-5 h-5" strokeWidth={3} />}
                             </button>
                         </form>
 
