@@ -42,7 +42,7 @@ const Mascot = ({ imageSrc, delay, x, y, size = "w-10 h-10 lg:w-14 lg:h-14", cur
 };
 
 const Login = () => {
-    const { login, user, profile } = useAuth();
+    const { login, user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation(); // 🚀 Capture state from navigation
     const [loading, setLoading] = useState(false);
@@ -58,8 +58,8 @@ const Login = () => {
     }, [location]);
 
     useEffect(() => {
-        if (user && profile) {
-            const role = profile.role?.toUpperCase();
+        if (user) {
+            const role = user.role?.toUpperCase();
             if (role === 'ADMIN') {
                 navigate('/admin');
             } else if (role === 'EMPLOYEE') {
@@ -68,7 +68,7 @@ const Login = () => {
                 setLoading(false); // Safeguard if user has no role
             }
         }
-    }, [user, profile, navigate]);
+    }, [user, navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
