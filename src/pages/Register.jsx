@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-hot-toast';
 import { useToast } from '../context/ToastContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -69,21 +70,20 @@ const Register = () => {
 
             const result = await signUp(formData.email, formData.password, { 
                 full_name: formData.full_name,
-                department: finalDept, // Use finalDept here
+                department: finalDept,
                 role: formData.role
             });
             
             if (result.success) {
-                toast.success('Account created! Entering dashboard...');
-                // Redirection handled by AuthContext + PrivateRoute
+                showToast('Account created! Entering dashboard...', 'success');
             } else {
                 setError(result.message || 'Registration failed.');
-                toast.error(result.message || 'Registration failed');
+                showToast(result.message || 'Registration failed', 'error');
             }
         } catch (err) {
             console.error('Unified signup failure:', err);
             setError(err.message || 'An unexpected error occurred during signup');
-            toast.error('Registration failed');
+            showToast('Registration failed', 'error');
         } finally {
             setLoading(false);
         }
