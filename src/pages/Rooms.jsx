@@ -11,7 +11,8 @@ import { notifyRoomUpdate } from '../services/notification.service';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 const Rooms = () => {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
+    const isAdmin = (user?.role?.toUpperCase() === 'ADMIN') || (profile?.role?.toUpperCase() === 'ADMIN');
     const { showToast } = useToast();
     const { rooms, loading: dataLoading, refreshRooms } = useData();
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -198,16 +199,18 @@ const Rooms = () => {
                     <h1 className="text-2xl font-bold">Rooms Management</h1>
                     <p className="text-gray-500 text-sm">Add, edit, or deactivate conference rooms.</p>
                 </div>
-                <div className="flex gap-2">
-                    <Button onClick={() => refreshRooms()} variant="outline" className="flex items-center gap-2">
-                        <RefreshCw size={18} className={dataLoading ? "animate-spin" : ""} />
-                        Refresh
-                    </Button>
-                    <Button onClick={() => handleOpenModal()} className="flex items-center gap-2">
-                        <Plus size={18} />
-                        Add New Room
-                    </Button>
-                </div>
+                {isAdmin && (
+                    <div className="flex gap-2">
+                        <Button onClick={() => refreshRooms()} variant="outline" className="flex items-center gap-2">
+                            <RefreshCw size={18} className={dataLoading ? "animate-spin" : ""} />
+                            Refresh
+                        </Button>
+                        <Button onClick={() => handleOpenModal()} className="flex items-center gap-2">
+                            <Plus size={18} />
+                            Add New Room
+                        </Button>
+                    </div>
+                )}
             </div>
 
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden text-gray-900">
@@ -218,7 +221,7 @@ const Rooms = () => {
                             <th className="px-6 py-4">Capacity</th>
                             <th className="px-6 py-4">Utilisation</th>
                             <th className="px-6 py-4">Status</th>
-                            <th className="px-6 py-4 text-center">Actions</th>
+                            {isAdmin && <th className="px-6 py-4 text-center">Actions</th>}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50 text-sm">
@@ -263,26 +266,28 @@ const Rooms = () => {
                                             {status}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center justify-center gap-2">
-                                            <button 
-                                                onClick={() => {
-                                                    const ns = isActive ? 'INACTIVE' : 'ACTIVE';
-                                                    handleDeactivate({ room_id: id, id: id, status: ns === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' });
-                                                }} 
-                                                className={`p-2 rounded-xl transition-all ${isActive ? 'text-green-500 hover:bg-green-50' : 'text-gray-400 hover:bg-blue-50'}`}
-                                                title={isActive ? "Deactivate Room" : "Activate Room"}
-                                            >
-                                                <Power size={18} />
-                                            </button>
-                                            <button onClick={() => handleOpenModal(room)} className="p-2 text-gray-500 hover:text-pucho-blue">
-                                                <Edit2 size={18} />
-                                            </button>
-                                            <button onClick={() => setDeleteConfirm(room)} className="p-2 text-gray-400 hover:text-red-500">
-                                                <Trash2 size={18} />
-                                            </button>
-                                        </div>
-                                    </td>
+                                    {isAdmin && (
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center justify-center gap-2">
+                                                <button 
+                                                    onClick={() => {
+                                                        const ns = isActive ? 'INACTIVE' : 'ACTIVE';
+                                                        handleDeactivate({ room_id: id, id: id, status: ns === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' });
+                                                    }} 
+                                                    className={`p-2 rounded-xl transition-all ${isActive ? 'text-green-500 hover:bg-green-50' : 'text-gray-400 hover:bg-blue-50'}`}
+                                                    title={isActive ? "Deactivate Room" : "Activate Room"}
+                                                >
+                                                    <Power size={18} />
+                                                </button>
+                                                <button onClick={() => handleOpenModal(room)} className="p-2 text-gray-500 hover:text-pucho-blue">
+                                                    <Edit2 size={18} />
+                                                </button>
+                                                <button onClick={() => setDeleteConfirm(room)} className="p-2 text-gray-400 hover:text-red-500">
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    )}
                                 </tr>
                             );
                         })}

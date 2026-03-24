@@ -11,7 +11,8 @@ import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 const Users = () => {
     const { showToast } = useToast();
-    const { profile } = useAuth();
+    const { user, profile } = useAuth();
+    const isAdmin = (user?.role?.toUpperCase() === 'ADMIN') || (profile?.role?.toUpperCase() === 'ADMIN');
     const { users, loading: dataLoading, refreshUsers } = useData();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -252,7 +253,7 @@ const Users = () => {
     };
 
     // Protect the UI
-    if (profile?.role !== 'ADMIN') {
+    if (!isAdmin) {
         return (
             <div className="p-8 text-center text-red-500 font-bold">
                 Access Denied: Admins Only
