@@ -57,6 +57,12 @@ export const DataProvider = ({ children }) => {
                 const type = String(n.type || '').toLowerCase();
                 const msg = String(n.message || '').toLowerCase();
                 const targetEmail = String(n.user_email || '').toLowerCase();
+                
+                // RESTRICT REPORTS TO ADMINS ONLY
+                if (type.includes('report')) {
+                    return user?.role?.toUpperCase() === 'ADMIN';
+                }
+
                 if (type.includes('room')) return true;
                 if (targetEmail === currentEmail) return true;
                 if (currentEmail && msg.includes(currentEmail)) return true;
