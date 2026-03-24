@@ -87,7 +87,10 @@ const Register = () => {
             });
             
             if (result.success) {
-                showToast(result.message || 'Account created! Entering dashboard...', 'success');
+                showToast(result.message || 'Account created! Please login.', 'success');
+                setTimeout(() => {
+                    navigate('/login');
+                }, 1500); // Small delay to let user see the toast
             } else {
                 setError(result.message || 'Registration failed.');
                 showToast(result.message || 'Registration failed', 'error');
