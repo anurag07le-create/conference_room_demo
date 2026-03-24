@@ -2,14 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Calendar, Clock, MapPin, Search, ChevronRight, MessageSquare, Info } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 
 const MeetingMinutes = () => {
+    const { user } = useAuth();
     const { bookings, loading: dataLoading } = useData();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedMinutes, setSelectedMinutes] = useState(null);
 
-    // Filter bookings that have MoM notes
-    const minutesList = (bookings || []).filter(b => b.mom_notes);
+    const isAdmin = user?.role?.toUpperCase() === 'ADMIN';
+
+    // Filter bookings that have MoM notes AND user is authorized to see them
+    const minutesList = (bookings || []).filter(b => {
+        if (!b.mom_notes) return false;
+        if (isAdmin) return true;
+        
+        const userEmail = user?.email?.toLowerCase();
+        if (!userEmail) return false;
+        
+        // Check if user is an attendee
+        const attendeesStr = (b.attendees || '').toLowerCase();
+        return attendeesStr.includes(userEmail);
+    });
     
     const filteredMinutes = minutesList.filter(m => 
         (m.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
