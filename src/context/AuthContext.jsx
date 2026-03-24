@@ -118,7 +118,7 @@ export const AuthProvider = ({ children }) => {
             }
 
             if (data.user) {
-                const { error: dbError } = await supabase.from('users').insert([{
+                const { error: dbError } = await supabase.from('users').upsert([{
                     user_id: data.user.id,
                     email,
                     full_name: profileData.full_name,
@@ -128,7 +128,7 @@ export const AuthProvider = ({ children }) => {
                     slack_sync: false,
                     reminder_30min: true,
                     daily_report: true
-                }]);
+                }], { onConflict: 'user_id' });
 
                 if (dbError) {
                     console.error("[Auth] Profile insert error:", dbError);
