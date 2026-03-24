@@ -40,7 +40,8 @@ const Register = () => {
         full_name: '',
         email: '',
         password: '',
-        department: 'Sales'
+        department: 'Sales',
+        role: 'EMPLOYEE' // Default role
     });
 
     const [showOtherDept, setShowOtherDept] = useState(false);
@@ -63,10 +64,9 @@ const Register = () => {
         setLoading(true);
 
         try {
-            // 🚀 Strictly enforce the ADMIN vs EMPLOYEE rule during signup
-            // Default is always EMPLOYEE unless the email specifically contains 'admin'
-            const userEmailLower = formData.email.toLowerCase();
-            const userRole = userEmailLower.includes('admin') ? 'ADMIN' : 'EMPLOYEE';
+            // 🚀 Now using the EXPLICITLY selected role from the form
+            // No more hidden email-based deduction
+            const userRole = formData.role;
 
             const result = await signUp(formData.email, formData.password, {
                 full_name: formData.full_name,
@@ -74,7 +74,7 @@ const Register = () => {
                 role: userRole
             });
 
-            if (result.success && result.user) {
+            if (result.success) {
                 // Background Onboarding Webhook
                 try {
                     const ONBOARD_URL = import.meta.env.VITE_ONBOARDING_WEBHOOK_URL || "https://studio.pucho.ai/api/v1/webhooks/fGjOoM7eciSpGACaz09jq";
@@ -203,9 +203,21 @@ const Register = () => {
                                     </select>
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-gray-500 ml-1">Password</label>
-                                    <Input prefix={<Lock size={18} />} type="password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} placeholder="••••••••" />
+                                    <label className="text-xs font-semibold text-gray-500 ml-1">Account Type (Role)</label>
+                                    <select 
+                                        value={formData.role} 
+                                        onChange={(e) => setFormData({...formData, role: e.target.value})} 
+                                        className="w-full h-12 bg-white border border-gray-200 px-4 rounded-xl text-sm font-bold text-pucho-blue focus:ring-2 focus:ring-pucho-blue outline-none transition-all"
+                                    >
+                                        <option value="EMPLOYEE">Employee</option>
+                                        <option value="ADMIN">Administrator</option>
+                                    </select>
                                 </div>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-semibold text-gray-500 ml-1">Password</label>
+                                <Input prefix={<Lock size={18} />} type="password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} placeholder="••••••••" />
                             </div>
 
                             {/* Conditional Manual Department Input */}
