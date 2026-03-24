@@ -4,47 +4,15 @@ import SearchIcon from '../../assets/icons/search.svg';
 import BellIcon from '../../assets/icons/bell.png';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useData } from '../../context/DataContext';
 
 const Header = ({ onMenuClick }) => {
     const { user, profile } = useAuth();
+    const { notifications, searchQuery, setSearchQuery } = useData();
     const [isFocused, setIsFocused] = useState(false);
-    const [notifCount, setNotifCount] = useState(0);
-
-    useEffect(() => {
-        if (!user?.id) return;
-        
-        const fetchNotifCount = async () => {
-            const { count, error } = await supabase
-                .from('notifications')
-                .select('*', { count: 'exact', head: true })
-                .eq('user_id', user.id)
-                .eq('is_read', false);
-            
-            if (!error) setNotifCount(count || 0);
-        };
-        fetchNotifCount();
-
-        // REAL-TIME: Subscribe to notifications table
-        const channel = supabase
-            .channel('header_notifications')
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'notifications',
-                    filter: `user_id=eq.${user.id}`
-                },
-                () => {
-                    fetchNotifCount();
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [user?.id]);
+    
+    // Derived state for performance and real-time accuracy
+    const notifCount = notifications.filter(n => !n.is_read).length;
 
     return (
         <header className="sticky top-0 z-20 w-full h-[76px] bg-white/80 backdrop-blur-xl border-b border-gray-100 flex items-center justify-between pl-8 py-0 pr-8">
@@ -53,7 +21,7 @@ const Header = ({ onMenuClick }) => {
                 <div
                     className={`
                         flex items-center gap-2.5 bg-white rounded-full transition-all duration-200 ease-in-out
-                        ${isFocused
+                        ${isFocused || searchQuery
                             ? 'h-[44px] w-[332px] border-[0.7px] border-[#B56FFF] shadow-[0px_0px_0px_3px_#DBD4FB] p-1'
                             : 'h-[44px] w-[332px] border border-black/5 p-1 hover:border-[#B56FFF] hover:shadow-none'
                         }
@@ -65,10 +33,12 @@ const Header = ({ onMenuClick }) => {
                     <input
                         type="text"
                         placeholder="Search"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                         className={`
                             flex-1 bg-transparent border-none outline-none text-[#111935] placeholder:text-black/50 text-[16px] font-['Inter'] leading-[150%]
                             transition-all duration-300 ease-in-out
-                            ${isFocused ? 'pl-2' : 'pl-0'}
+                            ${isFocused || searchQuery ? 'pl-2' : 'pl-0'}
                         `}
                         onFocus={() => setIsFocused(true)}
                         onBlur={() => setIsFocused(false)}

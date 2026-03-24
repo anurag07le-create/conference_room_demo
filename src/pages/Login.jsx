@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { User, Lock, ArrowRight, Moon, Sparkles, Circle } from 'lucide-react';
@@ -44,10 +44,18 @@ const Mascot = ({ imageSrc, delay, x, y, size = "w-10 h-10 lg:w-14 lg:h-14", cur
 const Login = () => {
     const { login, user, profile } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation(); // 🚀 Capture state from navigation
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+
+    // Pre-fill email if passed from Register page
+    useEffect(() => {
+        if (location.state && location.state.email) {
+            setEmail(location.state.email);
+        }
+    }, [location]);
 
     useEffect(() => {
         if (user && profile) {

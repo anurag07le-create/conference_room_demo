@@ -22,7 +22,7 @@ const ChatWidget = () => {
     const messagesEndRef = useRef(null);
 
     // Replace with your actual UC-7 Webhook URL from Pucho Studio
-    const CHATBOT_WEBHOOK_URL = "https://studio.pucho.ai/api/v1/webhooks/iqnCSGaLDLpQFQcLrsa0r";
+    const CHATBOT_WEBHOOK_URL = import.meta.env.VITE_SMART_COMM_WEBHOOK_URL || "https://studio.pucho.ai/api/v1/webhooks/HHRERjvYyx4TblQt65NLD";
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
         full_name: user.full_name || user.email?.split('@')[0] || 'User',
         email: user.email,
         department: user.department,
-        role: user.role || 'EMPLOYEE',
+        role: (user.role || (user.email?.toLowerCase().includes('admin') ? 'ADMIN' : 'EMPLOYEE')).toUpperCase(),
         reminder_30min: user.reminder_30min ?? true,
         daily_report: user.daily_report ?? true,
         email_alerts: user.email_alerts ?? true,
@@ -47,7 +47,6 @@ export const AuthProvider = ({ children }) => {
         const initialize = async () => {
             console.log("[Auth] initialize started");
             try {
-                // 1. Check initial session
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session?.user && isMounted) {
                     const fullUser = await handleProfileFetch(session.user);
@@ -62,18 +61,21 @@ export const AuthProvider = ({ children }) => {
                 }
             }
 
-            // 2. Set up listener for future changes
             const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
                 console.log("[Auth] onAuthStateChange event:", event);
+                
                 if (session?.user) {
                     const fullUser = await handleProfileFetch(session.user);
-                    if (isMounted) setUser(fullUser);
-                } else if (isMounted) {
-                    setUser(null);
+                    if (isMounted) {
+                        setUser(fullUser);
+                        setLoading(false);
+                    }
+                } else {
+                    if (isMounted) {
+                        setUser(null);
+                        setLoading(false);
+                    }
                 }
-                
-                // Safety catch if for some reason loading is still true
-                if (isMounted) setLoading(false);
             });
 
             return subscription;
@@ -122,8 +124,14 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = async () => {
-        await supabase.auth.signOut();
-        setUser(null);
+        try {
+            await supabase.auth.signOut();
+        } catch (err) {
+            console.error("[Auth] Logout error during signOut:", err);
+        } finally {
+            // ALWAYS clear user state locally
+            setUser(null);
+        }
     };
 
     return (

@@ -1,72 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, CheckCircle, Info, AlertTriangle, Clock, Users, Calendar, XCircle } from 'lucide-react';
+import { Bell, CheckCircle, Info, AlertTriangle, Clock, Users, Calendar, XCircle, BarChart3 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useData } from '../context/DataContext';
 
 const Notifications = () => {
     const { user } = useAuth();
     const { showToast } = useToast();
-    const [notifications, setNotifications] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState('all'); // all, unread, read
+    const { notifications, loading: dataLoading, refreshNotifications } = useData();
+    const [filter, setFilter] = useState('all'); 
 
     useEffect(() => {
-        if (!user?.id) return;
-        
-        fetchNotifications();
-
-        // REAL-TIME: Subscribe to notifications table
-        const channel = supabase
-            .channel('notifications_realtime')
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'notifications'
-                },
-                (payload) => {
-                    const newNotif = payload.new;
-                    // Client-side filter because user_id could be null but user_email contains the email
-                    if (newNotif.user_id === user.id || (newNotif.user_email && newNotif.user_email.includes(user.email))) {
-                        console.log("New notification received:", newNotif);
-                        
-                        // Add to state
-                        setNotifications(prev => [newNotif, ...prev]);
-                        
-                        // Show toast
-                        showToast(newNotif.title, newNotif.type === 'BOOKING_CANCELLED' ? 'error' : 'info');
-                    }
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [user?.id]);
-
-    const fetchNotifications = async () => {
-        if (!user?.id) return;
-        
-        setLoading(true);
-        try {
-            const { data, error } = await supabase
-                .from('notifications')
-                .select('*')
-                .or(`user_id.eq.${user.id},user_email.ilike.%${user.email}%`)
-                .order('created_at', { ascending: false })
-                .limit(100);
-
-            if (error) throw error;
-            setNotifications(data || []);
-        } catch (error) {
-            console.error("Error fetching notifications:", error);
-        } finally {
-            setLoading(false);
+        if (user) {
+            refreshNotifications();
         }
-    };
+    }, [user]);
 
     const markAsRead = async (notificationId) => {
         try {
@@ -75,9 +24,7 @@ const Notifications = () => {
                 .update({ is_read: true })
                 .eq('id', notificationId);
             
-            setNotifications(prev => 
-                prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
-            );
+            refreshNotifications();
         } catch (error) {
             console.error("Error marking as read:", error);
         }
@@ -91,7 +38,7 @@ const Notifications = () => {
                 .eq('user_id', user.id)
                 .eq('is_read', false);
             
-            setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+            refreshNotifications();
             showToast('All notifications marked as read', 'success');
         } catch (error) {
             console.error("Error marking all as read:", error);
@@ -100,11 +47,14 @@ const Notifications = () => {
 
     const getTypeIcon = (type) => {
         switch (type) {
+            case 'booking':
             case 'BOOKING_CREATED': return <CheckCircle className="w-5 h-5 text-green-500" />;
             case 'BOOKING_UPDATED': return <Info className="w-5 h-5 text-blue-500" />;
             case 'BOOKING_CANCELLED': return <XCircle className="w-5 h-5 text-red-500" />;
             case 'MEETING_INVITE': return <Users className="w-5 h-5 text-purple-500" />;
+            case 'room':
             case 'ROOM_UPDATE': return <Calendar className="w-5 h-5 text-indigo-500" />;
+            case 'REPORTS': return <BarChart3 className="w-5 h-5 text-emerald-500" />;
             case 'REMINDER': return <Clock className="w-5 h-5 text-amber-500" />;
             default: return <Bell className="w-5 h-5 text-gray-500" />;
         }
@@ -112,11 +62,14 @@ const Notifications = () => {
 
     const getTypeColor = (type) => {
         switch (type) {
+            case 'booking':
             case 'BOOKING_CREATED': return 'bg-green-50 border-green-200';
             case 'BOOKING_UPDATED': return 'bg-blue-50 border-blue-200';
             case 'BOOKING_CANCELLED': return 'bg-red-50 border-red-200';
             case 'MEETING_INVITE': return 'bg-purple-50 border-purple-200';
+            case 'room':
             case 'ROOM_UPDATE': return 'bg-indigo-50 border-indigo-200';
+            case 'REPORTS': return 'bg-emerald-50 border-emerald-200';
             case 'REMINDER': return 'bg-amber-50 border-amber-200';
             default: return 'bg-gray-50 border-gray-200';
         }
@@ -167,7 +120,7 @@ const Notifications = () => {
             </div>
 
             <div className="space-y-3">
-                {loading ? (
+                {dataLoading ? (
                     <div className="bg-white p-10 rounded-2xl border border-gray-100 shadow-sm flex justify-center">
                         <div className="w-8 h-8 border-4 border-[#4F27E9]/20 border-t-[#4F27E9] rounded-full animate-spin"></div>
                     </div>

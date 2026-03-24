@@ -10,7 +10,7 @@ const MoMModal = ({ isOpen, onClose, booking, onSuccess }) => {
     const [notes, setNotes] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const WEBHOOK_URL = "https://studio.pucho.ai/api/v1/webhooks/iqnCSGaLDLpQFQcLrsa0r";
+    const WEBHOOK_URL = import.meta.env.VITE_MOM_BOT_WEBHOOK_URL || "https://studio.pucho.ai/api/v1/webhooks/jogPQpo1j0siWOyzCxIzI";
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -18,18 +18,23 @@ const MoMModal = ({ isOpen, onClose, booking, onSuccess }) => {
             showToast('Please enter some meeting notes.', 'error');
             return;
         }
-
         setLoading(true);
+        const watchdog = setTimeout(() => {
+            setLoading(false);
+            onClose();
+            showToast("Syncing with Flow...", "info");
+        }, 3000);
+
         try {
-            // 1. Trigger Pucho Studio Webhook
+            // 1. Prepare Payload
             const payload = {
                 action: 'generate_mom',
-                booking_id: booking.id,
+                booking_id: booking.id || booking.booking_id,
                 title: booking.title,
-                room_name: booking.room,
-                date: booking.date,
-                start_time: booking.startTime,
-                end_time: booking.endTime,
+                room_name: booking.room_name || booking.room,
+                date: booking.booking_date || booking.date,
+                start_time: booking.start_time || booking.startTime,
+                end_time: booking.end_time || booking.endTime,
                 attendees: booking.attendees,
                 attendee_emails: booking.attendee_emails,
                 description: booking.description,
@@ -37,28 +42,23 @@ const MoMModal = ({ isOpen, onClose, booking, onSuccess }) => {
                 timestamp: new Date().toISOString()
             };
 
-            // Fire-and-forget to avoid blocking the UI
+            // 2. Trigger Pucho Studio Webhook (Central Flow Hand-off)
+            // THE FLOW will generate the MoM and update the database table.
             fetch(WEBHOOK_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
-            }).catch(e => console.log("MoM Webhook Error:", e));
+            }).catch(e => console.error("MoM Webhook Flow Error:", e));
 
-            // 2. Update Supabase (mark as summary saved)
-            const { error: updateError } = await supabase
-                .from('bookings')
-                .update({ mom_notes: notes })
-                .eq('booking_id', booking.id);
-
-            if (updateError) console.warn("Supabase update skipped:", updateError.message);
-
-            showToast('AI Meeting Summary Triggered!', 'success');
-            setNotes('');
+            clearTimeout(watchdog);
+            showToast('AI Summary request sent to Flow!', 'success');
             if (onSuccess) onSuccess();
             onClose();
+            setNotes('');
         } catch (error) {
+            clearTimeout(watchdog);
             console.error("MoM Submission Error:", error);
-            showToast('Failed to save notes: ' + error.message, 'error');
+            showToast('Failed to save: ' + error.message, 'error');
         } finally {
             setLoading(false);
         }

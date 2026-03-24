@@ -48,41 +48,46 @@ const Settings = () => {
         const savedRules = localStorage.getItem('booking_rules');
         if (savedRules) setRules(JSON.parse(savedRules));
 
-        // Set user ID from auth
-        if (user?.id) setUserId(user.id);
+        // Sync with Auth session data immediately
+        if (user) {
+            setUserId(user.id);
+            setProfileInfo(prev => ({
+                ...prev,
+                full_name: user.full_name || prev.full_name,
+                email: user.email || '',
+                department: user.department || prev.department
+            }));
+        }
     }, [user]);
 
-    // Fetch profile and notification preferences from Supabase
+    // Fetch profile and notification preferences from Supabase for latest data
     const fetchUserData = async () => {
         if (!userId) return;
         
-        const { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('user_id', userId)
-            .single();
-        
-        if (data && !error) {
-            setProfileInfo({
-                full_name: data.full_name || '',
-                email: data.email || '',
-                phone: data.phone || '',
-                department: data.department || '',
-                bio: data.bio || '',
-                avatar_url: data.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${data.full_name}`
-            });
-
-            setNotifications({
-                email_alerts: data.email_alerts ?? true,
-                slack_sync: data.slack_sync ?? false,
-                reminder_30min: data.reminder_30min ?? true,
-                daily_report: data.daily_report ?? true
-            });
+        try {
+            const { data, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('user_id', userId)
+                .single();
+            
+            if (data && !error) {
+                setProfileInfo({
+                    full_name: data.full_name || '',
+                    email: user?.email || data.email || '',
+                    phone: data.phone || '',
+                    department: data.department || '',
+                    bio: data.bio || '',
+                    avatar_url: data.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${data.full_name}`
+                });
+            }
+        } catch (err) {
+            console.error("Error fetching user data:", err);
         }
     };
 
     useEffect(() => {
-        fetchUserData();
+        if (userId) fetchUserData();
     }, [userId]);
 
     const handleSaveProfile = async () => {
@@ -396,55 +401,6 @@ const Settings = () => {
                 </div>
             )}
 
-            {/* Notification Preferences (UC-5) */}
-            <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-8 py-6 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-[#4F27E9]">
-                            <Bell size={20} />
-                        </div>
-                        <div>
-                            <h2 className="font-bold text-gray-900">Notifications</h2>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Pucho AI Assistant Alerts</p>
-                        </div>
-                    </div>
-                    <Button onClick={handleSaveNotifications} disabled={loading} className="!bg-[#4F27E9] !text-white h-10 px-6 rounded-xl gap-2 font-bold text-xs uppercase tracking-widest">
-                        <Save size={14} />
-                        Save Preferences
-                    </Button>
-                </div>
-                <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {[
-                        { id: 'email_alerts', label: 'Email Notifications', sub: 'Instant updates for bookings & changes.' },
-                        { id: 'slack_sync', label: 'Slack Integration', sub: 'Project sync for remote teams.' },
-                        { id: 'reminder_30min', label: '30-Min Smart Reminder', sub: 'Proactive alerts before meetings.' },
-                        { id: 'daily_report', label: 'Daily Analytics summary', sub: 'Yesterday\'s room utilisation report.' }
-                    ].map((item) => (
-                        <div key={item.id} className="flex items-center justify-between p-5 rounded-2xl border border-gray-50 hover:border-indigo-100 hover:bg-indigo-50/10 transition-all group">
-                            <div>
-                                <p className="font-bold text-sm text-gray-900">{item.label}</p>
-                                <p className="text-[10px] font-medium text-gray-400 mt-1">{item.sub}</p>
-                            </div>
-                            <button 
-                                onClick={() => setNotifications({...notifications, [item.id]: !notifications[item.id]})}
-                                className={`w-14 h-7 rounded-full transition-all relative ${notifications[item.id] ? 'bg-[#4F27E9] shadow-lg shadow-indigo-200' : 'bg-gray-200'}`}
-                            >
-                                <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${notifications[item.id] ? 'right-1' : 'left-1'}`} />
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-indigo-500 shadow-sm">
-                    <CheckCircle size={20} />
-                </div>
-                <div>
-                    <h3 className="font-bold text-indigo-900">Pro Tip</h3>
-                    <p className="text-sm text-indigo-700/80">Updating dynamic rules affects all future bookings immediately. Existing bookings remain unchanged but will be flagged if they violate new rules during edits.</p>
-                </div>
-            </div>
         </div>
     );
 };

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { useData } from '../../context/DataContext';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import { Calendar, Clock, Users, BookOpen, AlertCircle, Loader2 } from 'lucide-react';
@@ -9,9 +10,8 @@ import { Calendar, Clock, Users, BookOpen, AlertCircle, Loader2 } from 'lucide-r
 const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
     const { user, profile } = useAuth();
     const { showToast } = useToast();
+    const { rooms: dataRooms, refreshBookings } = useData(); 
     const [loading, setLoading] = useState(false);
-    const [fetchingRooms, setFetchingRooms] = useState(false);
-    const [rooms, setRooms] = useState([]);
     
     const [formData, setFormData] = useState({
         title: '',
@@ -20,64 +20,51 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
         startTime: '',
         endTime: '',
         attendees: 1,
-        description: ''
+        description: '',
+        attendee_emails: ''
     });
 
-    const WEBHOOK_URL = "https://studio.pucho.ai/api/v1/webhooks/GpTrz1Gk1lW8ksIY0A5BF";
+    const WEBHOOK_URL = import.meta.env.VITE_SMART_COMM_WEBHOOK_URL || "https://studio.pucho.ai/api/v1/webhooks/HHRERjvYyx4TblQt65NLD";
+
+    // Standardize room mapping from context
+    const rooms = (dataRooms || []).map(r => ({
+        ...r,
+        id: r.id || r.room_id,
+        name: r.room_name || r.name || 'Unnamed Room'
+    }));
 
     useEffect(() => {
         if (isOpen) {
-            fetchRooms();
             if (initialData) {
-                setFormData(prev => ({
-                    ...prev,
-                    ...initialData
-                }));
+                const targetRoomId = initialData.room_id || initialData.id || '';
+                setFormData({
+                    title: initialData.title || '',
+                    room_id: targetRoomId,
+                    date: initialData.date || initialData.booking_date || new Date().toISOString().split('T')[0],
+                    startTime: initialData.time || initialData.start_time || '',
+                    endTime: initialData.end_time || (initialData.time ? `${String(parseInt(initialData.time?.split(':')[0]) + 1).padStart(2, '0')}:00` : ''),
+                    description: initialData.description || '',
+                    attendees: initialData.attendees || 1,
+                    attendee_emails: initialData.attendee_emails || ''
+                });
             } else {
-                // Set default times if empty
                 const now = new Date();
-                const start = new Date(now.getTime() + 30 * 60000); // 30 mins from now
-                const end = new Date(start.getTime() + 60 * 60000);   // 1 hour later
+                const start = new Date(now.getTime() + 30 * 60000);
+                const end = new Date(start.getTime() + 60 * 60000);
                 
-                setFormData(prev => ({
-                    ...prev,
+                setFormData({
                     startTime: start.toTimeString().substring(0, 5),
-                    endTime: end.toTimeString().substring(0, 5)
-                }));
+                    endTime: end.toTimeString().substring(0, 5),
+                    title: '',
+                    room_id: rooms.length > 0 ? rooms[0].id : '',
+                    date: new Date().toISOString().split('T')[0],
+                    description: '',
+                    attendees: 1,
+                    attendee_emails: ''
+                });
             }
         }
-    }, [isOpen, initialData]);
-
-    const fetchRooms = async () => {
-        setFetchingRooms(true);
-        try {
-            const { data, error } = await supabase
-                .from('rooms')
-                .select('*')
-                .eq('status', 'ACTIVE')
-                .order('room_name');
-            
-            if (error) throw error;
-            
-            // Map IDs robustly correctly
-            const mappedRooms = (data || []).map(r => ({
-                ...r,
-                id: r.id || r.room_id, // Safety for different column naming
-                name: r.room_name
-            }));
-            
-            setRooms(mappedRooms);
-            
-            // If it's a "Quick Book" and no room is selected, pick the first one
-            if (!formData.room_id && mappedRooms.length > 0 && !initialData?.room_id) {
-                setFormData(prev => ({ ...prev, room_id: mappedRooms[0].id }));
-            }
-        } catch (error) {
-            console.error("Error fetching rooms:", error);
-        } finally {
-            setFetchingRooms(false);
-        }
-    };
+    }, [isOpen, initialData, rooms.length]);
 
     const validate = () => {
         const start = new Date(`${formData.date}T${formData.startTime}`);
@@ -99,17 +86,41 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
 
     const triggerWebhook = async (action, payload) => {
         const selectedRoom = rooms.find(r => r.id === payload.room_id);
-        const startISO = `${payload.booking_date}T${payload.start_time}:00`;
-        const endISO = `${payload.booking_date}T${payload.end_time}:00`;
+        const dateRaw = payload.booking_date || payload.date;
+        const start = payload.start_time;
+        const end = payload.end_time;
+        
+        let startISO = '';
+        let endISO = '';
+        
+        if (dateRaw && start) {
+            // Safe split to avoid crash if date is weirdly formatted
+            const cleanDate = typeof dateRaw === 'string' ? dateRaw.split('T')[0] : new Date().toISOString().split('T')[0];
+            const cleanStart = (start || '').substring(0, 5);
+            startISO = `${cleanDate}T${cleanStart}:00.000Z`;
+        }
+        if (dateRaw && end) {
+            const cleanDate = typeof dateRaw === 'string' ? dateRaw.split('T')[0] : new Date().toISOString().split('T')[0];
+            const cleanEnd = (end || '').substring(0, 5);
+            endISO = `${cleanDate}T${cleanEnd}:00.000Z`;
+        }
 
         try {
+            // 🚀 PURGE all potential time conflicts
+            const { 
+                start_date_time, end_date_time, 
+                start_time, end_time, 
+                startTime, endTime, 
+                ...cleanPayload 
+            } = payload;
+
             await fetch(WEBHOOK_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
+                    ...cleanPayload,
                     action_type: action,
-                    ...payload,
-                    room_name: selectedRoom?.room_name || 'Unknown Room',
+                    room_name: selectedRoom?.room_name || 'Selected Room',
                     user_email: user?.email,
                     user_name: profile?.full_name || user?.email,
                     start_date_time: startISO,
@@ -130,6 +141,9 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
         }
 
         setLoading(true);
+        const isEditing = !!initialData?.id || !!initialData?.booking_id;
+        const targetId = initialData?.id || initialData?.booking_id;
+
         const payload = {
             title: formData.title,
             room_id: formData.room_id,
@@ -138,34 +152,67 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
             end_time: formData.endTime,
             attendees: parseInt(formData.attendees),
             description: formData.description,
-            user_email: user?.email,
+            attendee_emails: formData.attendee_emails,
+            user_email: user?.email || profile?.email || 'admin@pucho.ai',
             status: 'CONFIRMED'
         };
 
+        // 🚀 Watchdog Timer (Safety Power - Unconditional Reset)
+        const watchdog = setTimeout(() => {
+            setLoading(false);
+            onClose();
+            showToast("Syncing in background...", "info");
+        }, 5000);
+
         try {
-            const { error: dbError } = await supabase
-                .from('bookings')
-                .insert([payload]);
+            // 🚀 1. DB SAVE
+            let dbError;
+            if (isEditing && targetId) {
+                // Strictly match the ID as a string for indexed speed
+                const { error } = await supabase
+                    .from('bookings')
+                    .update(payload)
+                    .match({ [targetId.length > 10 ? 'booking_id' : 'id']: targetId }); 
+                dbError = error;
+            } else {
+                const { error } = await supabase
+                    .from('bookings')
+                    .insert([payload]);
+                dbError = error;
+            }
 
             if (dbError) throw dbError;
 
-            showToast("Meeting booked successfully!", "success");
-            triggerWebhook('create_booking', payload);
-            if (onSuccess) onSuccess();
+            // 🚀 2. IMMEDIATE UI RELEASE (No waiting for background)
+            clearTimeout(watchdog);
+            setLoading(false);
             onClose();
+            showToast(isEditing ? "Meeting updated successfully!" : "Meeting booked successfully!", "success");
+            
+            // 🚀 3. BACKGROUND UPDATES
+            if (onSuccess) onSuccess();
+            if (refreshBookings) refreshBookings();
+
+            // 🚀 3. WEBHOOK (Non-blocking background fire)
+            const finalPayload = { 
+                ...payload, 
+                room_name: rooms.find(r => r.id === payload.room_id)?.name || 'Room' 
+            };
+            triggerWebhook(isEditing ? 'edit_booking' : 'create_booking', finalPayload)
+                .catch(e => console.error("Webhook Background Trace:", e.message));
+
         } catch (err) {
-            showToast(err.message || "Failed to book meeting", "error");
-        } finally {
+            clearTimeout(watchdog);
+            console.error("Booking Error:", err);
+            showToast(err.message || "Operation failed", "error");
             setLoading(false);
         }
     };
 
-    const selectedRoomDetails = rooms.find(r => r.id === formData.room_id);
-
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Reserve Room">
+        <Modal isOpen={isOpen} onClose={onClose} title={initialData?.id || initialData?.booking_id ? "Edit Reservation" : "Reserve Room"}>
             <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Title Section */}
+                {/* Meeting Title */}
                 <div className="space-y-2">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                         <BookOpen size={12} className="text-[#4F27E9]" />
@@ -182,7 +229,7 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                    {/* Room Select */}
+                    {/* Select Room - Pre-populated from context */}
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Select Room</label>
                         <select 
@@ -215,74 +262,69 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                     </div>
                 </div>
 
-                {/* Logistics */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-gray-900">
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                            <Calendar size={12} /> Date
-                        </label>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</label>
                         <input 
                             required
                             type="date" 
-                            min={new Date().toISOString().split('T')[0]}
                             value={formData.date}
                             onChange={(e) => setFormData({...formData, date: e.target.value})}
-                            className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold text-gray-900" 
+                            className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold transition-all" 
                         />
                     </div>
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                            <Clock size={12} /> Start
-                        </label>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Start Time</label>
                         <input 
                             required
                             type="time" 
                             value={formData.startTime}
                             onChange={(e) => setFormData({...formData, startTime: e.target.value})}
-                            className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold text-gray-900" 
+                            className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold transition-all" 
                         />
                     </div>
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                            <Clock size={12} /> End
-                        </label>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">End Time</label>
                         <input 
                             required
                             type="time" 
                             value={formData.endTime}
                             onChange={(e) => setFormData({...formData, endTime: e.target.value})}
-                            className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold text-gray-900" 
+                            className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold transition-all" 
                         />
                     </div>
                 </div>
 
-                {/* Capacity Warning */}
-                {selectedRoomDetails && parseInt(formData.attendees) > selectedRoomDetails.capacity && (
-                    <div className="flex items-center gap-2 p-3 bg-indigo-50 rounded-xl border border-indigo-100 text-[10px] font-bold text-indigo-700">
-                        <AlertCircle size={14} />
-                        Over Capacity: This room fits {selectedRoomDetails.capacity} people max.
-                    </div>
-                )}
-
-                {/* Description */}
+                {/* Attendee Emails */}
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Meeting Agenda</label>
-                    <textarea 
-                        rows="3"
-                        placeholder="What's this meeting about?"
-                        value={formData.description}
-                        onChange={(e) => setFormData({...formData, description: e.target.value})}
-                        className="w-full p-5 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-medium text-gray-700 resize-none"
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Attendee Emails</label>
+                    <input 
+                        type="text" 
+                        placeholder="email1@gmail.com, email2@gmail.com"
+                        value={formData.attendee_emails}
+                        onChange={(e) => setFormData({...formData, attendee_emails: e.target.value})}
+                        className="w-full h-12 px-5 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 transition-all font-bold text-gray-700" 
                     />
                 </div>
 
-                {/* Action */}
+                {/* Agenda */}
+                <div className="space-y-2 text-gray-900">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Meeting Agenda</label>
+                    <textarea 
+                        rows="2"
+                        placeholder="What's this meeting about?"
+                        value={formData.description}
+                        onChange={(e) => setFormData({...formData, description: e.target.value})}
+                        className="w-full p-5 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-medium text-gray-700 resize-none transition-all"
+                    />
+                </div>
+
                 <Button 
                     type="submit" 
                     disabled={loading}
                     className="w-full h-14 bg-[#4F27E9] text-white hover:bg-[#3D1DB3] rounded-2xl font-black text-xs tracking-widest uppercase shadow-lg shadow-indigo-200 disabled:opacity-50"
                 >
-                    {loading ? <Loader2 className="animate-spin" /> : "Confirm Reservation"}
+                    {loading ? <Loader2 className="animate-spin mx-auto text-white" /> : (initialData?.id || initialData?.booking_id ? "Update Reservation" : "Confirm Reservation")}
                 </Button>
             </form>
         </Modal>

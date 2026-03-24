@@ -20,7 +20,7 @@ const AdminDashboard = () => {
 
             {/* Sidebar - Hidden on mobile by default */}
             <div className={`
-                fixed inset-y-0 left-0 lg:relative z-50 lg:z-auto
+                fixed inset-y-0 left-0 lg:relative z-[200] lg:z-[200]
                 transform transition-transform duration-300 ease-in-out
                 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
             `}>
@@ -30,7 +30,7 @@ const AdminDashboard = () => {
             {/* Main Content Wrapper */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 {/* Mobile Header */}
-                <div className="lg:hidden flex items-center gap-4 p-4 bg-white border-b border-gray-100">
+                <div className="lg:hidden flex items-center gap-4 p-4 bg-white border-b border-gray-100 z-[150]">
                     <button 
                         onClick={() => setSidebarOpen(true)}
                         className="p-2 hover:bg-gray-100 rounded-lg"
@@ -41,7 +41,7 @@ const AdminDashboard = () => {
                 </div>
 
                 {/* Desktop Header: Sticky Top */}
-                <div className="hidden lg:block">
+                <div className="hidden lg:block relative z-[150]">
                     <Header />
                 </div>
 

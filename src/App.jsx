@@ -11,6 +11,8 @@ import Register from "./pages/Register";
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import Settings from "./pages/Settings";
+import MeetingMinutes from "./pages/MeetingMinutes";
+import { DataProvider } from "./context/DataContext";
 
 const LoadingScreen = () => (
     <div style={{
@@ -73,41 +75,45 @@ function App() {
         <BrowserRouter>
             <ToastProvider>
                 <AuthProvider>
-                    <Routes>
-                        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-                        <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-                        
-                        {/* Admin Routes */}
-                        <Route path="/admin" element={
-                            <ProtectedRoute allowedRole="ADMIN">
-                                <AdminDashboard />
-                            </ProtectedRoute>
-                        }>
-                            <Route index element={<Dashboard />} />
-                            <Route path="bookings" element={<Bookings />} />
-                            <Route path="rooms" element={<Rooms />} />
-                            <Route path="users" element={<Users />} />
-                            <Route path="notifications" element={<Notifications />} />
-                            <Route path="settings" element={<Settings />} />
-                        </Route>
+                    <DataProvider>
+                        <Routes>
+                            <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+                            <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+                            
+                            {/* Admin Routes */}
+                            <Route path="/admin" element={
+                                <ProtectedRoute allowedRole="ADMIN">
+                                    <AdminDashboard />
+                                </ProtectedRoute>
+                            }>
+                                <Route index element={<Dashboard />} />
+                                <Route path="bookings" element={<Bookings />} />
+                                <Route path="rooms" element={<Rooms />} />
+                                <Route path="users" element={<Users />} />
+                                <Route path="minutes" element={<MeetingMinutes />} />
+                                <Route path="notifications" element={<Notifications />} />
+                                <Route path="settings" element={<Settings />} />
+                            </Route>
 
-                        {/* Employee Routes */}
-                        <Route path="/user" element={
-                            <ProtectedRoute>
-                                <AdminDashboard /> {/* Reusing AdminDashboardLayout for sidebar/header, its components handle role visibility */}
-                            </ProtectedRoute>
-                        }>
-                            <Route index element={<Dashboard />} />
-                            <Route path="bookings" element={<Bookings />} />
-                            <Route path="rooms" element={<Rooms />} />
-                            <Route path="notifications" element={<Notifications />} />
-                            <Route path="settings" element={<Settings />} />
-                        </Route>
+                            {/* Employee Routes */}
+                            <Route path="/user" element={
+                                <ProtectedRoute>
+                                    <AdminDashboard /> {/* Reusing AdminDashboardLayout for sidebar/header, its components handle role visibility */}
+                                </ProtectedRoute>
+                            }>
+                                <Route index element={<Dashboard />} />
+                                <Route path="bookings" element={<Bookings />} />
+                                <Route path="rooms" element={<Rooms />} />
+                                <Route path="minutes" element={<MeetingMinutes />} />
+                                <Route path="notifications" element={<Notifications />} />
+                                <Route path="settings" element={<Settings />} />
+                            </Route>
 
-                        <Route path="/dashboard" element={<Navigate to="/user" replace />} />
-                        <Route path="/" element={<Navigate to="/login" replace />} />
-                        <Route path="*" element={<Navigate to="/login" replace />} />
-                    </Routes>
+                            <Route path="/dashboard" element={<Navigate to="/user" replace />} />
+                            <Route path="/" element={<Navigate to="/login" replace />} />
+                            <Route path="*" element={<Navigate to="/login" replace />} />
+                        </Routes>
+                    </DataProvider>
                 </AuthProvider>
             </ToastProvider>
         </BrowserRouter>

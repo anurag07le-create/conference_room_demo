@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
+import { useToast } from '../context/ToastContext';
 import { NavLink } from 'react-router-dom';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -11,7 +13,7 @@ import BookingModal from '../components/dashboard/BookingModal';
 import MoMModal from '../components/dashboard/MoMModal';
 import { supabase } from '../lib/supabase';
 
-const CalendarGrid = ({ isAdmin, rooms: roomsData, bookings: todayBookings, onQuickBook }) => {
+const CalendarGrid = ({ isAdmin, rooms: roomsData, bookings: todayBookings, onQuickBook, selectedDate, onDateChange }) => {
     const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
 
     const getStatus = (roomId, time) => {
@@ -27,6 +29,16 @@ const CalendarGrid = ({ isAdmin, rooms: roomsData, bookings: todayBookings, onQu
         });
 
         if (booking) return 'red';
+
+        // Add 'Soon' state logic if the date is today
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (selectedDate === todayStr) {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const slotHour = parseInt(time.split(':')[0]);
+            if (slotHour === currentHour + 1) return 'orange';
+        }
+
         return 'green';
     };
 
@@ -40,20 +52,25 @@ const CalendarGrid = ({ isAdmin, rooms: roomsData, bookings: todayBookings, onQu
     // Mobile View - Card List
     const MobileCalendarView = () => (
         <div className="md:hidden space-y-4">
-            {(roomsData || []).map(room => (
-                <div key={room.id} className="bg-white rounded-xl border border-gray-100 p-4">
+            {(roomsData || []).map((room, roomIdx) => (
+                <div key={room.id || `room-${roomIdx}`} className="bg-white rounded-xl border border-gray-100 p-4">
                     <div className="flex justify-between items-center mb-3">
                         <h4 className="font-bold text-gray-900">{room.room_name}</h4>
                         <span className="text-xs text-gray-500">{room.floor_location}</span>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        {timeSlots.map(time => {
+                        {timeSlots.map((time, timeIdx) => {
                             const status = getStatus(room.id, time);
                             const slotBooking = todayBookings?.find(b => (b.room_id === room.id || b.rooms?.id === room.id) && b.status === 'CONFIRMED' && b.start_time <= time && b.end_time > time);
                             return (
                                 <button
-                                    key={time}
-                                    onClick={() => status === 'green' && onQuickBook?.({ room_id: room.id, room_name: room.room_name, time })}
+                                    key={`${room.id}-${time}`}
+                                    onClick={() => status === 'green' && onQuickBook?.({ 
+                                        room_id: room.id, 
+                                        room_name: room.room_name, 
+                                        time, 
+                                        date: selectedDate 
+                                    })}
                                     className={`px-3 py-2 rounded-lg text-xs font-medium border ${colors[status]} ${status === 'green' ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-60'}`}
                                 >
                                     {time}
@@ -70,20 +87,77 @@ const CalendarGrid = ({ isAdmin, rooms: roomsData, bookings: todayBookings, onQu
         </div>
     );
 
+    const scrollContainerRef = React.useRef(null);
+
+    const scroll = (direction) => {
+        if (scrollContainerRef.current) {
+            const amount = direction === 'left' ? -250 : 250;
+            scrollContainerRef.current.scrollBy({ left: amount, behavior: 'smooth' });
+        }
+    };
+
+    const scrollToCurrentTime = React.useCallback(() => {
+        if (scrollContainerRef.current) {
+            const now = new Date();
+            const currentHour = now.getHours();
+            
+            // Find slot or default to first if too early
+            let slotIndex = timeSlots.findIndex(t => parseInt(t.split(':')[0]) === currentHour);
+            if (slotIndex === -1 && currentHour < 9) slotIndex = 0; // Morning view
+            if (slotIndex === -1 && currentHour > 17) slotIndex = timeSlots.length - 1; // EOD view
+            
+            if (slotIndex !== -1) {
+                const scrollOffset = Math.max(0, (slotIndex - 1) * 120); 
+                scrollContainerRef.current.scrollLeft = scrollOffset;
+            }
+        }
+    }, [timeSlots]);
+
+    React.useEffect(() => {
+        const timer = setTimeout(scrollToCurrentTime, 1000);
+        return () => clearTimeout(timer);
+    }, [scrollToCurrentTime]);
+
     // Desktop View - Table Grid
     const DesktopCalendarView = () => (
         <div className="hidden md:block relative group/scroll">
-            <div className="absolute right-0 top-0 bottom-12 w-16 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none opacity-0 group-hover/scroll:opacity-100 transition-opacity" />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 z-20 opacity-0 group-hover/scroll:opacity-100 transition-opacity">
-                <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 bg-white/90 px-2 py-1 rounded-full shadow-sm">
-                    <span>Scroll</span>
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            {/* Scroll Buttons Overlay */}
+            <div className="absolute inset-y-0 -left-4 flex items-center z-20 pointer-events-none">
+                <button 
+                    onClick={() => scroll('left')}
+                    className="p-2 bg-white/90 border border-gray-100 rounded-full shadow-xl text-gray-400 hover:text-[#4F27E9] hover:scale-110 pointer-events-auto transition-all"
+                >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
                     </svg>
+                </button>
+            </div>
+            
+            <div className="absolute inset-y-0 -right-4 flex items-center z-20 pointer-events-none">
+                <div className="flex flex-col gap-2">
+                    <button 
+                        onClick={() => scroll('right')}
+                        className="p-2 bg-white/90 border border-gray-100 rounded-full shadow-xl text-gray-400 hover:text-[#4F27E9] hover:scale-110 pointer-events-auto transition-all"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                    <button 
+                        onClick={scrollToCurrentTime}
+                        className="p-2 bg-[#4F27E9]/10 border border-[#4F27E9]/20 rounded-full shadow-lg text-[#4F27E9] hover:bg-[#4F27E9] hover:text-white pointer-events-auto transition-all"
+                        title="Today's View"
+                    >
+                        <Clock size={16} />
+                    </button>
                 </div>
             </div>
-            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
-                <table className="w-full border-separate border-spacing-2 min-w-[800px]">
+
+            <div 
+                ref={scrollContainerRef}
+                className="overflow-x-auto pb-6 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent scroll-smooth px-2"
+            >
+                <table className="w-full border-separate border-spacing-2 min-w-[1000px]">
                     <thead>
                         <tr>
                             <th className="p-2"></th>
@@ -93,16 +167,24 @@ const CalendarGrid = ({ isAdmin, rooms: roomsData, bookings: todayBookings, onQu
                         </tr>
                     </thead>
                     <tbody>
-                        {(roomsData || []).map(room => (
-                            <tr key={room.id}>
+                        {(roomsData || []).map((room, roomIdx) => (
+                            <tr key={room.id || `droom-${roomIdx}`}>
                                 <td className="p-2 text-sm font-bold text-gray-900 whitespace-nowrap min-w-[140px]">{room.room_name}</td>
-                                {timeSlots.map(time => {
+                                {timeSlots.map((time, timeIdx) => {
                                     const status = getStatus(room.id, time);
                                     const slotBooking = todayBookings?.find(b => (b.room_id === room.id || b.rooms?.id === room.id) && b.status === 'CONFIRMED' && b.start_time <= time && b.end_time > time);
                                     
                                     return (
-                                        <td key={time} className="p-0">
-                                            <div className={`h-12 w-full rounded-xl border flex items-center justify-center transition-all cursor-pointer hover:scale-[1.02] ${colors[status]}`}>
+                                        <td key={`${room.id}-${time}`} className="p-0">
+                                            <div 
+                                                onClick={() => status === 'green' && onQuickBook?.({ 
+                                                    room_id: room.id, 
+                                                    room_name: room.room_name, 
+                                                    time, 
+                                                    date: selectedDate 
+                                                })}
+                                                className={`h-12 w-full rounded-xl border flex items-center justify-center transition-all cursor-pointer hover:scale-[1.02] ${colors[status]}`}
+                                            >
                                                 {status === 'red' && isAdmin && <span className="text-[10px] font-bold px-1 text-center truncate">{slotBooking?.title || 'Booked'}</span>}
                                                 {status === 'green' && <Plus size={14} className="opacity-40" />}
                                             </div>
@@ -125,7 +207,17 @@ const CalendarGrid = ({ isAdmin, rooms: roomsData, bookings: todayBookings, onQu
     return (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="p-4 md:p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                <h3 className="font-bold text-gray-900">Room Availability</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <h3 className="font-bold text-gray-900">Room Availability</h3>
+                    <div className="relative">
+                        <input 
+                            type="date" 
+                            value={selectedDate}
+                            onChange={(e) => onDateChange(e.target.value)}
+                            className="bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5 text-xs font-bold text-[#4F27E9] focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20"
+                        />
+                    </div>
+                </div>
                 <div className="flex flex-wrap gap-3 md:gap-4 text-xs">
                     <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#F0FFF4] border border-[#C6F6D5]"></div> <span className="hidden sm:inline">Available</span></div>
                     <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#FFF5F5] border border-[#FED7D7]"></div> <span className="hidden sm:inline">Booked</span></div>
@@ -141,12 +233,14 @@ const CalendarGrid = ({ isAdmin, rooms: roomsData, bookings: todayBookings, onQu
 };
 const Dashboard = () => {
     const { user, profile } = useAuth();
+    const { bookings: globalBookings, rooms: globalRooms, loading: dataLoading, refreshAll, searchQuery } = useData();
     const [isBookingModalOpen, setIsBookingModalOpen] = React.useState(false);
     const [bookingInitialData, setBookingInitialData] = React.useState(null);
     const isAdmin = profile?.role?.toUpperCase() === 'ADMIN';
 
     const [isMoMModalOpen, setIsMoMModalOpen] = React.useState(false);
     const [selectedBookingForMoM, setSelectedBookingForMoM] = React.useState(null);
+    const [activeTab, setActiveTab] = React.useState('Overview');
     const [todayBookings, setTodayBookings] = React.useState([]);
     const [stats, setStats] = React.useState({
         totalToday: 0,
@@ -162,39 +256,12 @@ const Dashboard = () => {
         attendeeCount: 0
     });
     const [loading, setLoading] = React.useState(false);
+    const [selectedGridDate, setSelectedGridDate] = React.useState(new Date().toISOString().split('T')[0]);
+    const [gridBookings, setGridBookings] = React.useState([]);
 
     React.useEffect(() => {
-        if (user) {
-            fetchTodayBookings();
-        }
+        if (!user || globalBookings.length === 0 || globalRooms.length === 0) return;
 
-        // REAL-TIME: Subscribe to booking changes (safely)
-        let channel;
-        try {
-            channel = supabase
-                .channel('dashboard_bookings_realtime')
-                .on(
-                    'postgres_changes',
-                    {
-                        event: '*',
-                        schema: 'public',
-                        table: 'bookings'
-                    },
-                    () => {
-                        fetchTodayBookings();
-                    }
-                )
-                .subscribe();
-        } catch (err) {
-            console.warn("Realtime subscription failed:", err);
-        }
-
-        return () => {
-            if (channel) supabase.removeChannel(channel);
-        };
-    }, [user]);
-
-    const fetchTodayBookings = async () => {
         setLoading(true);
         try {
             const today = new Date().toISOString().split('T')[0];
@@ -202,40 +269,38 @@ const Dashboard = () => {
             yesterdayDate.setDate(yesterdayDate.getDate() - 1);
             const yesterday = yesterdayDate.toISOString().split('T')[0];
 
-            // 1. Fetch ALL Rooms
-            const { data: roomsData, error: roomsError } = await supabase
-                .from('rooms')
-                .select('*');
+            const mappedRooms = globalRooms;
+            
+            // 🚀 ROLE & SEARCH BASED DATA FILTERING
+            const userEmail = user.email?.toLowerCase();
+            const q = (searchQuery || '').toLowerCase();
+            
+            const bookingsData = globalBookings.filter(b => {
+                // 1. Role Check
+                const isOwner = b.user_email?.toLowerCase() === userEmail || 
+                               b.attendee_emails?.toLowerCase().includes(userEmail);
+                if (!isAdmin && !isOwner) return false;
 
-            if (roomsError) throw roomsError;
-
-            // 2. Fetch ALL Bookings (to calculate historical trends and heatmap)
-            const { data: bookingsData, error: bookingsError } = await supabase
-                .from('bookings')
-                .select('*, rooms(room_name)')
-                .order('created_at', { ascending: false });
-
-            if (bookingsError) throw bookingsError;
-
-            const mappedRooms = (roomsData || []).map(r => ({
-                ...r,
-                id: r.room_id || r.id,
-                name: r.room_name,
-                location: r.floor_location
-            }));
+                // 2. Search Filter
+                if (!q) return true;
+                return (
+                    b.title?.toLowerCase().includes(q) ||
+                    b.user_email?.toLowerCase().includes(q) ||
+                    b.room_name?.toLowerCase().includes(q)
+                );
+            });
 
             // Separate Today vs Yesterday for KPI comparison
-            const todayList = bookingsData?.filter(b => b.booking_date === today) || [];
-            const yesterdayList = bookingsData?.filter(b => b.booking_date === yesterday) || [];
+            const todayList = (bookingsData || []).filter(b => b.booking_date === today) || [];
+            const yesterdayList = (bookingsData || []).filter(b => b.booking_date === yesterday) || [];
             
-            // 3. Heatmap Calculation (Real 30-day historical average, not just today)
-            // UC-8: Real-time charts from Supabase
+            // 3. Heatmap Calculation (Real 30-day historical average)
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
             const thirtyDaysStr = thirtyDaysAgo.toISOString().split('T')[0];
             
             const recentBookings = bookingsData?.filter(b => b.booking_date >= thirtyDaysStr) || [];
-            const totalWorkMinutesMonth = 30 * 9 * 60; // 30 days * 9 hours * 60 mins
+            const totalWorkMinutesMonth = 30 * 9 * 60; 
 
             const heatmap = mappedRooms.map(room => {
                 const roomHistory = recentBookings.filter(b => (b.room_id === room.id) && b.status === 'CONFIRMED');
@@ -249,31 +314,24 @@ const Dashboard = () => {
                                 bookedMinutes += (end[0] * 60 + end[1]) - (start[0] * 60 + start[1]);
                             }
                         } catch (e) {
-                            console.warn("Calculation error for booking:", b.booking_id);
+                            console.warn("Calculation error for booking:", b.id);
                         }
                     }
                 });
-                const utilization = Math.min(100, Math.round((bookedMinutes / totalWorkMinutesMonth) * 100 * 5)); // Scaled for visibility
+                const utilization = Math.min(100, Math.round((bookedMinutes / totalWorkMinutesMonth) * 100 * 10)); // Adjusted scaling
                 return {
-                    name: room.room_name,
+                    name: room.name,
                     val: utilization,
                     color: utilization > 60 ? 'bg-rose-500' : utilization > 30 ? 'bg-[#4F27E9]' : 'bg-indigo-300'
                 };
             });
 
-            // 4. Map Today's List for the Availability Grid
-            const mappedTodayList = todayList.map(b => ({
-                ...b,
-                id: b.booking_id || b.id,
-                date: b.booking_date,
-                startTime: b.start_time ? b.start_time.substring(0, 5) : '--:--',
-                endTime: b.end_time ? b.end_time.substring(0, 5) : '--:--',
-                room: b.rooms?.room_name || 'Unknown Room'
-            }));
+            // 4. Filter bookings for the selected grid date
+            const gridList = bookingsData?.filter(b => b.booking_date === selectedGridDate) || [];
+            setGridBookings(gridList);
+            setTodayBookings(todayList);
 
-            setTodayBookings(mappedTodayList);
-
-            // 5. Calculate Live Stats for Admin KPIs
+            // 5. Live Stats calculation
             const now = new Date();
             const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
             
@@ -283,34 +341,14 @@ const Dashboard = () => {
                 b.end_time >= currentTime
             ).length;
 
-            const cancelledToday = todayList.filter(b => b.status === 'CANCELLED').length;
-            const cancelledYesterday = yesterdayList.filter(b => b.status === 'CANCELLED').length;
-
-            // Find Peak Usage Room (Historical all-time favorite)
             const roomCounts = {};
             bookingsData?.forEach(b => {
-                const rName = b.rooms?.room_name;
+                const rName = b.rooms?.room_name || b.room || 'Unknown';
                 if (rName) roomCounts[rName] = (roomCounts[rName] || 0) + 1;
             });
-            const peak = Object.entries(roomCounts).sort((a,b) => b[1] - a[1])[0]?.[0] || 'Innovation Hub';
-            
-            // System Health Heuristics
-            const health = { 
-                engine: bookingsData.length > 0 ? 'Operational' : 'Idle', 
-                notifs: bookingsData.some(b => b.summary_sent) ? 'Active' : 'Operational' 
-            };
+            const peak = Object.entries(roomCounts).sort((a,b) => b[1] - a[1])[0]?.[0] || 'N/A';
 
-            // 6. Fetch Upcoming (Current time onwards, system-wide for admin)
-            const upcoming = bookingsData?.filter(b => 
-                (b.booking_date > today || (b.booking_date === today && b.start_time > currentTime)) &&
-                b.status === 'CONFIRMED'
-            ).slice(0, 8).map(b => ({
-                ...b,
-                startTime: b.start_time?.substring(0, 5),
-                room: b.rooms?.room_name || 'Unknown Room'
-            })) || [];
-
-            // 7. Find "Next Available Room" for quick booking
+            // Find "Next Available Room" for quick booking
             const nextAvailable = mappedRooms?.find(r => {
                 return !todayList.some(b => 
                     (b.room_id === r.id) && 
@@ -319,48 +357,30 @@ const Dashboard = () => {
                     b.end_time > currentTime
                 );
             }) || mappedRooms?.[0];
-
-            // 8. Unique Attendees list
-            const attendeeEmails = new Set();
-            todayList.forEach(b => {
-                if (b.attendee_emails) {
-                    b.attendee_emails.split(',').forEach(e => {
-                        const trimmed = e.trim();
-                        if (trimmed) attendeeEmails.add(trimmed);
-                    });
-                }
-            });
-            const attendeeList = Array.from(attendeeEmails);
-
-            // 9. Update Stats State
-            setStats({
+            
+            setStats(prev => ({
+                ...prev,
                 totalToday: todayList.length,
                 totalYesterday: yesterdayList.length,
                 activeRooms: currentlyActive,
-                cancellations: cancelledToday,
-                yesterdayCancellations: cancelledYesterday,
+                cancellations: todayList.filter(b => b.status === 'CANCELLED').length,
                 peakRoom: peak,
-                heatmap,
                 rooms: mappedRooms,
-                upcoming,
-                nextAvailable,
-                health,
-                attendeeCount: attendeeList.length,
-                attendeeList: attendeeList,
-                allBookings: bookingsData?.slice(0, 15).map(b => ({
-                    ...b,
-                    id: b.booking_id || b.id,
-                    user_name: b.attendee_emails?.split(',')[0]?.split('@')[0] || 'Admin', // Real name logic fallback
-                    room_name: b.rooms?.room_name || 'Meeting Room'
-                })) || []
-            });
-            
-            setLoading(false);
-        } catch (error) {
-            console.error("Dashboard Sync Error:", error);
+                heatmap: heatmap,
+                allBookings: bookingsData,
+                upcoming: todayList.filter(b => b.status === 'CONFIRMED' && b.start_time > currentTime).sort((a,b) => a.start_time.localeCompare(b.start_time)),
+                nextAvailable: nextAvailable,
+                health: {
+                    engine: bookingsData.length > 0 ? 'Operational' : 'Idle',
+                    notifs: bookingsData.some(b => b.summary_sent) ? 'Active' : 'Operational'
+                }
+            }));
+        } catch (err) {
+            console.error("Dashboard stats error:", err);
+        } finally {
             setLoading(false);
         }
-    };
+    }, [user, globalBookings, globalRooms, selectedGridDate]);
 
     const handleOpenBooking = (data = null) => {
         setBookingInitialData(data);
@@ -375,13 +395,24 @@ const Dashboard = () => {
     return (
         <div className="space-y-8 animate-fade-in group/dashboard">
             {isAdmin ? (
-                <AdminDashboardView onOpenBooking={handleOpenBooking} stats={stats} todayBookings={todayBookings} />
+                <AdminDashboardView 
+                    onOpenBooking={handleOpenBooking} 
+                    stats={stats} 
+                    gridBookings={gridBookings} 
+                    selectedGridDate={selectedGridDate}
+                    setSelectedGridDate={setSelectedGridDate}
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                />
             ) : (
                 <UserDashboardView 
                     user={user} 
                     profile={profile}
                     onOpenBooking={handleOpenBooking} 
+                    gridBookings={gridBookings}
                     todayBookings={todayBookings}
+                    selectedGridDate={selectedGridDate}
+                    setSelectedGridDate={setSelectedGridDate}
                     onOpenMoM={handleOpenMoM}
                     loadingToday={loading}
                     stats={stats}
@@ -393,7 +424,7 @@ const Dashboard = () => {
                 onClose={() => setIsBookingModalOpen(false)}
                 initialData={bookingInitialData}
                 onSuccess={() => {
-                    fetchTodayBookings();
+                    refreshAll();
                 }}
             />
 
@@ -401,13 +432,13 @@ const Dashboard = () => {
                 isOpen={isMoMModalOpen}
                 onClose={() => setIsMoMModalOpen(false)}
                 booking={selectedBookingForMoM}
-                onSuccess={fetchTodayBookings}
+                onSuccess={refreshAll}
             />
         </div>
     );
 };
 
-const AdminDashboardView = ({ onOpenBooking, stats, todayBookings }) => {
+const AdminDashboardView = ({ onOpenBooking, stats, gridBookings, selectedGridDate, setSelectedGridDate, activeTab, setActiveTab }) => {
     const getTrend = (current, previous) => {
         if (previous === undefined || previous === null || previous === 0) {
             if (current > 0) return { value: 100, isUp: true };
@@ -426,27 +457,27 @@ const AdminDashboardView = ({ onOpenBooking, stats, todayBookings }) => {
     const kpis = [
         { 
             title: 'Total Bookings Today', 
-            value: stats.totalToday || '0', 
+            value: stats?.totalToday ?? '0', 
             icon: <Calendar className="w-5 h-5" />, 
             color: 'bg-blue-50 text-blue-600',
             trend: bookingTrend ? `${bookingTrend.isUp ? '+' : '-'}${bookingTrend.value}% vs yesterday` : 'No past data'
         },
         { 
             title: 'Currently Active', 
-            value: stats.activeRooms || '0', 
+            value: stats?.activeRooms ?? '0', 
             icon: <Activity className="w-5 h-5" />, 
             color: 'bg-green-50 text-green-600' 
         },
         { 
             title: 'Cancellations Today', 
-            value: stats.cancellations || '0', 
+            value: stats?.cancellations ?? '0', 
             icon: <XCircle className="w-5 h-5" />, 
             color: 'bg-red-50 text-red-600',
             trend: cancellationTrend ? `${cancellationTrend.isUp ? '+' : '-'}${cancellationTrend.value}% vs yesterday` : '0% vs yesterday'
         },
         { 
             title: 'Peak Usage Room', 
-            value: stats.peakRoom || 'N/A', 
+            value: stats?.peakRoom ?? 'N/A', 
             icon: <TrendingUp className="w-5 h-5" />, 
             color: 'bg-indigo-50 text-indigo-600' 
         },
@@ -454,31 +485,35 @@ const AdminDashboardView = ({ onOpenBooking, stats, todayBookings }) => {
 
     return (
         <div className="space-y-6 md:space-y-8">
-            {/* KPI Section */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-2">
-                <h2 className="text-xs md:text-sm font-black text-gray-400 uppercase tracking-widest">Live Monitoring Hub</h2>
+            {/* Header with Tabs */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-4">
+                <div className="space-y-2">
+                    <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight">Live Monitoring Hub</h2>
+                    {/* Tabs Navigation */}
+                    <div className="flex bg-gray-100/50 p-1 rounded-xl border border-gray-100 w-fit">
+                        <button 
+                            onClick={() => setActiveTab('Overview')}
+                            className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'Overview' ? 'bg-white shadow-sm text-[#4F27E9]' : 'text-gray-400 hover:text-gray-600'}`}
+                        >
+                            Overview
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('Analytics')}
+                            className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'Analytics' ? 'bg-white shadow-sm text-[#4F27E9]' : 'text-gray-400 hover:text-gray-600'}`}
+                        >
+                            Analytics
+                        </button>
+                    </div>
+                </div>
                 <div className="flex flex-wrap gap-2 md:gap-3">
-                    <BulkRescheduleModal rooms={stats.rooms} onReschedule={onOpenBooking} />
-                    <button 
-                        className="bg-white text-[#4F27E9] border border-indigo-100 hover:bg-indigo-50 flex items-center gap-2 h-9 px-3 md:px-4 text-xs font-black shadow-sm rounded-full transition-all"
-                    >
-                        <TrendingUp size={14} className="text-[#4F27E9]" />
-                        <span className="hidden sm:inline">Export CSV</span>
-                    </button>
-                    <button 
-                        onClick={() => onOpenBooking()}
-                        className="bg-[#4F27E9] text-white hover:bg-[#3D1DB3] flex items-center gap-2 h-9 px-3 md:px-4 text-xs font-black shadow-sm rounded-full transition-all"
-                    >
-                        <Plus size={14} />
-                        <span className="hidden sm:inline">Manual Override</span>
-                    </button>
+                    {/* Primary actions removed as per request for clean UI */}
                 </div>
             </div>
             
             {/* KPI Cards - Responsive Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
-                {kpis.map((kpi, idx) => (
-                    <div key={idx} className="bg-white p-4 md:p-6 rounded-xl md:rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-3 md:gap-4 hover:shadow-md transition-shadow">
+                {kpis.map((kpi, kpiIdx) => (
+                    <div key={kpi.title || kpiIdx} className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group overflow-hidden">
                         <div className="flex items-center gap-3 md:gap-4">
                             <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center ${kpi.color}`}>
                                 {kpi.icon}
@@ -499,63 +534,90 @@ const AdminDashboardView = ({ onOpenBooking, stats, todayBookings }) => {
                 ))}
             </div>
 
-            {/* Availability Grid - Responsive */}
-            <CalendarGrid isAdmin={true} rooms={stats.rooms} bookings={todayBookings} onQuickBook={onOpenBooking} />
+            {/* Conditional Content based on Active Tab */}
+            {activeTab === 'Overview' ? (
+                <>
+                    {/* Availability Grid - Responsive */}
+                    <CalendarGrid 
+                        isAdmin={true} 
+                        rooms={stats.rooms} 
+                        bookings={gridBookings} 
+                        onQuickBook={onOpenBooking} 
+                        selectedDate={selectedGridDate}
+                        onDateChange={setSelectedGridDate}
+                    />
 
-            {/* Bottom Section - Stack on Mobile */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Bookings Table - Full Width on Mobile */}
-                <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="p-4 md:p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                        <h3 className="font-bold text-gray-900">Recent Activity</h3>
-                        <button className="text-xs text-[#4F27E9] font-bold hover:underline">View All</button>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left min-w-[600px]">
-                            <thead className="bg-gray-50 text-gray-500 text-[10px] uppercase font-black tracking-widest hidden md:table-header-group">
-                                <tr>
-                                    <th className="px-6 py-4">User</th>
-                                    <th className="px-6 py-4">Room</th>
-                                    <th className="px-6 py-4">Time</th>
-                                    <th className="px-6 py-4">Status</th>
-                                    <th className="px-6 py-4 text-center">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50 text-sm">
-                                {(stats.allBookings || []).slice(0, 5).map((booking, i) => (
-                                    <tr key={booking.id || i} className="hover:bg-gray-50/50 transition-colors">
-                                        <td className="px-4 md:px-6 py-4 flex items-center gap-3">
-                                            <img src={`https://api.dicebear.com/7.x/initials/svg?seed=${booking.id}`} className="w-8 h-8 rounded-full bg-gray-100" />
-                                            <span className="font-bold text-gray-900 truncate max-w-[100px] md:max-w-none">{booking.title || 'Untitled Meeting'}</span>
-                                        </td>
-                                        <td className="px-4 md:px-6 py-4 text-gray-600 font-medium text-xs md:text-sm">{booking.room_name}</td>
-                                        <td className="px-4 md:px-6 py-4 text-gray-500 font-medium text-xs">
-                                            {booking.booking_date}<br className="md:hidden" />
-                                            <span className="text-gray-400">{booking.start_time?.substring(0, 5)}</span>
-                                        </td>
-                                        <td className="px-4 md:px-6 py-4">
-                                            <Badge status={booking.status?.toLowerCase()}>{booking.status}</Badge>
-                                        </td>
-                                        <td className="px-4 md:px-6 py-4 text-center">
-                                            <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-[#4F27E9]" title="View">
-                                                <Info size={16} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {(!stats.allBookings || stats.allBookings.length === 0) && (
+                    {/* Recent Activity Section */}
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mt-6">
+                        <div className="p-4 md:p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                            <h3 className="font-bold text-gray-900">Recent Activity</h3>
+                            <button className="text-xs text-[#4F27E9] font-bold hover:underline">View All</button>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left min-w-[600px]">
+                                <thead className="bg-gray-50 text-gray-500 text-[10px] uppercase font-black tracking-widest hidden md:table-header-group">
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-10 text-center text-gray-400 font-medium">No recent activity found</td>
+                                        <th className="px-6 py-4">User</th>
+                                        <th className="px-6 py-4">Room</th>
+                                        <th className="px-6 py-4">Time</th>
+                                        <th className="px-6 py-4">Status</th>
+                                        <th className="px-6 py-4 text-center">Actions</th>
                                     </tr>
-                                )}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50 text-sm">
+                                    {(stats.allBookings || []).slice(0, 5).map((booking, i) => (
+                                        <tr key={booking.id || i} className="hover:bg-gray-50/50 transition-colors">
+                                            <td className="px-4 md:px-6 py-4 flex items-center gap-3">
+                                                <img src={`https://api.dicebear.com/7.x/initials/svg?seed=${booking.id}`} className="w-8 h-8 rounded-full bg-gray-100" />
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="font-bold text-gray-900 truncate max-w-[120px] md:max-w-none hover:text-[#4F27E9] cursor-default transition-colors">{booking.title || 'Untitled Meeting'}</span>
+                                                    {booking.mom_notes && (
+                                                        <span className="text-[9px] font-black text-purple-600 uppercase tracking-tighter opacity-80 animate-pulse">AI Summary Ready</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 md:px-6 py-4 text-gray-600 font-medium text-xs md:text-sm">{booking.room_name}</td>
+                                            <td className="px-4 md:px-6 py-4 text-gray-500 font-medium text-xs">
+                                                {booking.booking_date}<br className="md:hidden" />
+                                                <span className="text-gray-400">{booking.start_time?.substring(0, 5)}</span>
+                                            </td>
+                                            <td className="px-4 md:px-6 py-4">
+                                                <Badge status={booking.status?.toLowerCase()}>{booking.status}</Badge>
+                                            </td>
+                                            <td className="px-4 md:px-6 py-4 text-center">
+                                                <div className="flex items-center justify-center gap-1">
+                                                    {booking.mom_notes && (
+                                                        <button 
+                                                            className="p-1.5 hover:bg-purple-50 rounded-lg text-purple-400 hover:text-purple-600 transition-all" 
+                                                            title="View Summary"
+                                                            onClick={() => {
+                                                                // Future-proof: Trigger MoM read-only modal here
+                                                                showToast('AI Summary for: ' + booking.title, 'info');
+                                                            }}
+                                                        >
+                                                            <FileText size={16} />
+                                                        </button>
+                                                    )}
+                                                    <button className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-[#4F27E9]" title="Details">
+                                                        <Info size={16} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {(!stats.allBookings || stats.allBookings.length === 0) && (
+                                        <tr>
+                                            <td colSpan="5" className="px-6 py-10 text-center text-gray-400 font-medium">No recent activity found</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
-
-                {/* System Stats / Heatmap */}
-                <div className="space-y-6">
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                </>
+            ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-slide-up">
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 ring-1 ring-gray-50">
                         <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
                             <TrendingUp className="w-5 h-5 text-[#4F27E9]" />
                             Room Heatmap
@@ -579,18 +641,40 @@ const AdminDashboardView = ({ onOpenBooking, stats, todayBookings }) => {
                         <p className="mt-6 text-[10px] text-gray-400 font-medium italic">Data based on past 30 days utilisation.</p>
                     </div>
 
-                    <div className="bg-[#111834] rounded-2xl p-6 text-white shadow-xl relative overflow-hidden group">
-                        <div className="relative z-10">
-                            <h3 className="font-bold mb-4 flex items-center gap-2">
-                                <ShieldAlert className="w-5 h-5 text-indigo-500" />
-                                System Health
+                    <div className="lg:col-span-2 space-y-6">
+                        <div className="bg-[#111834] rounded-2xl p-8 text-white shadow-2xl relative overflow-hidden">
+                            <h3 className="text-xl font-bold mb-6 flex items-center gap-3">
+                                <ShieldAlert className="w-6 h-6 text-indigo-400" />
+                                Core Analytics
                             </h3>
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center text-xs border-b border-white/10 pb-3">
-                                    <span className="text-gray-400 font-medium tracking-tight">Booking Engine (WF-07)</span>
-                                    <span className={`px-2 py-0.5 ${stats.health?.engine === 'Operational' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'} rounded text-[9px] font-black uppercase tracking-widest border`}>{stats.health?.engine || 'Operational'}</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-4">
+                                    <p className="text-sm text-gray-400">Monthly Usage Target</p>
+                                    <div className="flex items-end gap-2">
+                                        <span className="text-4xl font-black">78%</span>
+                                        <span className="text-green-400 text-xs mb-1 font-bold">▲ 12%</span>
+                                    </div>
+                                    <div className="w-full h-2 bg-white/10 rounded-full">
+                                        <div className="h-full bg-indigo-500 rounded-full" style={{ width: '78%' }}></div>
+                                    </div>
                                 </div>
-                                <div className="flex justify-between items-center text-xs border-b border-white/10 pb-3">
+                                <div className="space-y-4">
+                                    <p className="text-sm text-gray-400">Total Operational Efficiency</p>
+                                    <div className="flex items-end gap-2">
+                                        <span className="text-4xl font-black">94%</span>
+                                        <span className="text-green-400 text-xs mb-1 font-bold">Stable</span>
+                                    </div>
+                                    <div className="w-full h-2 bg-white/10 rounded-full">
+                                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: '94%' }}></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="pt-6 mt-6 border-t border-white/10 space-y-4">
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className="text-gray-400 font-medium tracking-tight">Engine Health (WF-01)</span>
+                                    <span className={`px-2 py-0.5 ${stats.health?.engine === 'Operational' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'} rounded text-[9px] font-black uppercase tracking-widest border`}>{stats.health?.engine || 'Idle'}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-xs">
                                     <span className="text-gray-400 font-medium tracking-tight">Notif Cluster (WF-11)</span>
                                     <span className={`px-2 py-0.5 ${stats.health?.notifs === 'Active' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-green-500/10 text-green-400 border-green-500/20'} rounded text-[9px] font-black uppercase tracking-widest border`}>{stats.health?.notifs || 'Operational'}</span>
                                 </div>
@@ -603,12 +687,15 @@ const AdminDashboardView = ({ onOpenBooking, stats, todayBookings }) => {
                         <Activity className="absolute -bottom-6 -right-6 w-24 h-24 text-white/5 group-hover:text-white/10 transition-colors" />
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };
 
-const UserDashboardView = ({ user, profile, onOpenBooking, todayBookings, onOpenMoM, loadingToday, stats }) => {
+const UserDashboardView = ({ user, profile, onOpenBooking, gridBookings, todayBookings, onOpenMoM, loadingToday, stats, selectedGridDate, setSelectedGridDate }) => {
+    const { notifications } = useData();
+    const unreadCount = notifications?.filter(n => !n.is_read).length || 0;
+
     return (
         <div className="space-y-8">
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -621,7 +708,7 @@ const UserDashboardView = ({ user, profile, onOpenBooking, todayBookings, onOpen
                                 <Bot size={14} className="text-white" />
                                 Pucho OS · Employee Portal
                             </div>
-                            <h2 className="text-4xl font-black mb-3 tracking-tight">Hello, {user?.full_name?.split(' ')[0] || 'User'}!</h2>
+                            <h2 className="text-4xl font-black mb-3 tracking-tight">Hello, {user?.full_name?.split(' ')?.[0] || 'User'}!</h2>
                             <p className="text-white/70 mb-10 font-medium text-lg leading-relaxed">Ready to automate your next meeting? Your personal assistant is ready in the bottom corner.</p>
                             <div className="flex items-center gap-4">
                                 <Button 
@@ -755,13 +842,14 @@ const UserDashboardView = ({ user, profile, onOpenBooking, todayBookings, onOpen
 
                     {/* Availability Grid */}
                     <div className="space-y-4">
-                        <div className="flex justify-between items-center px-2">
-                            <h3 className="font-black text-[#111834] tracking-tight text-xl uppercase">Full Studio Capacity View</h3>
-                            <button className="text-xs font-bold text-gray-400 flex items-center gap-1 hover:text-[#4F27E9] transition-colors">
-                                <Calendar size={14} /> View Month
-                            </button>
-                        </div>
-                        <CalendarGrid isAdmin={false} rooms={stats.rooms} bookings={todayBookings} />
+                        <CalendarGrid 
+                            isAdmin={false} 
+                            rooms={stats.rooms} 
+                            bookings={gridBookings} 
+                            onQuickBook={onOpenBooking}
+                            selectedDate={selectedGridDate}
+                            onDateChange={setSelectedGridDate}
+                        />
                     </div>
                 </div>
 
@@ -834,22 +922,27 @@ const UserDashboardView = ({ user, profile, onOpenBooking, todayBookings, onOpen
                                 </div>
                                 Notifications
                             </h3>
-                            <span className="bg-[#4F27E9] text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-lg shadow-lg">3</span>
+                            {unreadCount > 0 && (
+                                <span className="bg-[#4F27E9] text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-lg shadow-lg">
+                                    {unreadCount}
+                                </span>
+                            )}
                         </div>
                         <div className="space-y-6">
-                            {(todayBookings || []).length > 0 ? (
-                                (todayBookings || [])
-                                    .filter(b => b && b.user_id === user?.id)
+                            {notifications && notifications.length > 0 ? (
+                                notifications
                                     .slice(0, 3)
-                                    .map((b, i) => (
-                                        <div key={b.id || i} className="group cursor-pointer">
-                                            <p className={`text-[11px] font-black ${i === 0 ? 'text-[#4F27E9]' : 'text-gray-400'} uppercase tracking-[0.2em] mb-1`}>
-                                                {b.status === 'CONFIRMED' ? 'Meeting Confirmed' : 'System Alert'}
+                                    .map((notif, i) => (
+                                        <div key={notif.id || i} className="group cursor-pointer">
+                                            <p className={`text-[11px] font-black ${!notif.is_read ? 'text-[#4F27E9]' : 'text-gray-400'} uppercase tracking-[0.2em] mb-1`}>
+                                                {notif.type || 'Alert'}
                                             </p>
                                             <p className="text-xs font-bold text-gray-900 line-clamp-2 leading-relaxed">
-                                                {b.title || 'Meeting'} in {b.room || 'Room'} is {b.status?.toLowerCase() || 'scheduled'}.
+                                                {notif.message}
                                             </p>
-                                            <p className="text-[9px] font-black text-gray-300 mt-2 uppercase tracking-tight">Today • {b.startTime || '--:--'}</p>
+                                            <p className="text-[9px] font-black text-gray-300 mt-2 uppercase tracking-tight">
+                                                {new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </p>
                                         </div>
                                     ))
                             ) : (
@@ -866,102 +959,6 @@ const UserDashboardView = ({ user, profile, onOpenBooking, todayBookings, onOpen
                 </div>
             </div>
         </div>
-    );
-};
-
-const BulkRescheduleModal = ({ rooms, onReschedule }) => {
-    const [isOpen, setIsOpen] = React.useState(false);
-    const [loading, setLoading] = React.useState(false);
-    const [formData, setFormData] = React.useState({
-        date: new Date().toISOString().split('T')[0],
-        sourceRoomId: '',
-        targetRoomId: ''
-    });
-
-    const handleBulkMove = async () => {
-        if (!formData.sourceRoomId || !formData.targetRoomId || !formData.date) return;
-        setLoading(true);
-        try {
-            const { data, error } = await supabase
-                .from('bookings')
-                .update({ room_id: formData.targetRoomId })
-                .eq('room_id', formData.sourceRoomId)
-                .eq('booking_date', formData.date)
-                .eq('status', 'CONFIRMED');
-
-            if (error) throw error;
-            alert("Bulk rescheduling successful!");
-            setIsOpen(false);
-            window.location.reload(); // Refresh to see changes
-        } catch (error) {
-            alert("Failed to reschedule: " + error.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <>
-            <button 
-                onClick={() => setIsOpen(true)}
-                className="bg-white text-[#4F27E9] border border-indigo-100 hover:bg-indigo-50 flex items-center gap-2 h-9 px-3 md:px-4 text-xs font-black shadow-sm rounded-full transition-all"
-            >
-                <Calendar size={14} className="text-[#4F27E9]" />
-                <span className="hidden sm:inline">Bulk Reschedule</span>
-            </button>
-
-            {isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in text-gray-900">
-                    <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md mx-4 border border-gray-100">
-                        <h3 className="text-xl font-bold mb-2">Bulk Move Bookings</h3>
-                        <p className="text-xs text-gray-500 mb-6">Relocate all meetings from one room to another for a specific day.</p>
-                        
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Target Date</label>
-                                <input 
-                                    type="date" 
-                                    value={formData.date}
-                                    onChange={(e) => setFormData({...formData, date: e.target.value})}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20" 
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Source Room</label>
-                                    <select 
-                                        value={formData.sourceRoomId}
-                                        onChange={(e) => setFormData({...formData, sourceRoomId: e.target.value})}
-                                        className="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold"
-                                    >
-                                        <option value="">Select...</option>
-                                        {rooms?.map(r => <option key={r.id} value={r.id}>{r.room_name}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Target Room</label>
-                                    <select 
-                                        value={formData.targetRoomId}
-                                        onChange={(e) => setFormData({...formData, targetRoomId: e.target.value})}
-                                        className="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold border-[#4F27E9]/30"
-                                    >
-                                        <option value="">Select...</option>
-                                        {rooms?.filter(r => r.id !== formData.sourceRoomId).map(r => <option key={r.id} value={r.id}>{r.room_name}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 mt-8">
-                            <button onClick={() => setIsOpen(false)} className="flex-1 py-3 rounded-xl border border-gray-100 text-gray-500 font-bold text-xs hover:bg-gray-50">Cancel</button>
-                            <Button onClick={handleBulkMove} disabled={loading} className="flex-1 bg-[#4F27E9] text-white py-3 rounded-xl font-bold text-xs">
-                                {loading ? 'Moving...' : 'Execute Bulk Move'}
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </>
     );
 };
 

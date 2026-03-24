@@ -4,7 +4,11 @@ const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZi
 const s = createClient(url, key);
 
 async function check() {
-  const { data: rooms } = await s.from('rooms').select('id, room_name');
-  console.log('Rooms Data:', rooms);
+  const { data: rooms, error } = await s.from('rooms').select('*');
+  if (error) {
+    console.error('Fetch error:', error);
+  } else {
+    console.log('Rooms Data:', rooms);
+  }
 }
 check();
