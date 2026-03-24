@@ -553,7 +553,12 @@ const AdminDashboardView = ({ isAdmin, onOpenBooking, stats, gridBookings, selec
                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mt-6">
                         <div className="p-4 md:p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                             <h3 className="font-bold text-gray-900">Recent Activity</h3>
-                            <button className="text-xs text-[#4F27E9] font-bold hover:underline">View All</button>
+                            <NavLink 
+                                to={isAdmin ? "/admin/bookings" : "/user/bookings"}
+                                className="text-xs text-[#4F27E9] font-bold hover:underline"
+                            >
+                                View All
+                            </NavLink>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left min-w-[600px]">

@@ -149,33 +149,15 @@ export const notifyBookingCancelled = async (booking, ownerEmail, cancelledBy = 
 
 // Notify room update (to all users)
 export const notifyRoomUpdate = async (room, action, adminEmail) => {
+    // 🚀 Disabled global broadcast to prevent notification fatigue (Observations #4, #10)
+    /*
     const { data: users } = await supabase
         .from('users')
         .select('user_id');
     
     let title, message;
-    
-    if (action === 'ADD') {
-        title = 'New Room Available';
-        message = `A new conference room "${room.room_name}" has been added. Capacity: ${room.capacity}, Floor: ${room.floor_location}.`;
-    } else if (action === 'UPDATE') {
-        title = 'Room Updated';
-        message = `Conference room "${room.room_name}" has been updated.`;
-    } else if (action === 'DEACTIVATE') {
-        title = 'Room Unavailable';
-        message = `Conference room "${room.room_name}" is temporarily unavailable for maintenance.`;
-    }
-    
-    for (const user of users || []) {
-        await createNotification(
-            user.user_id,
-            'ROOM_UPDATE',
-            title,
-            message,
-            null,
-            adminEmail
-        );
-    }
+    ...
+    */
 };
 
 // Meeting reminder

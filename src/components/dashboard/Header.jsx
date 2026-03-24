@@ -32,7 +32,7 @@ const Header = ({ onMenuClick }) => {
                     </div>
                     <input
                         type="text"
-                        placeholder="Search"
+                        placeholder="Search Bookings..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className={`

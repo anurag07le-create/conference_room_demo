@@ -235,15 +235,11 @@ const Register = () => {
                                     </select>
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-gray-500 ml-1">Account Type (Role)</label>
-                                    <select 
-                                        value={formData.role} 
-                                        onChange={(e) => setFormData({...formData, role: e.target.value})} 
-                                        className="w-full h-12 bg-white border border-gray-200 px-4 rounded-xl text-sm font-bold text-pucho-blue focus:ring-2 focus:ring-pucho-blue outline-none transition-all"
-                                    >
-                                        <option value="EMPLOYEE">Employee</option>
-                                        <option value="ADMIN">Administrator</option>
-                                    </select>
+                                    <label className="text-xs font-semibold text-gray-400 ml-1">Account Type (Role)</label>
+                                    <div className="w-full h-12 bg-gray-50 border border-gray-100 px-4 rounded-xl text-sm font-bold text-gray-400 flex items-center">
+                                        Employee (Standard)
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 mt-1 ml-1 leading-tight">For Administrator access, please contact your IT management team.</p>
                                 </div>
                             </div>
 

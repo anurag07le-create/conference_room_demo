@@ -77,11 +77,35 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
         if (end <= start) return "End time must be after start time.";
         
         const selectedRoom = rooms.find(r => r.id === formData.room_id);
-        if (selectedRoom && parseInt(formData.attendees) > selectedRoom.capacity) {
+        if (selectedRoom && Number(formData.attendees) > Number(selectedRoom.capacity)) {
             return `This room has a maximum capacity of ${selectedRoom.capacity}.`;
         }
 
         return null;
+    };
+
+    const checkConflicts = async (roomId, date, startTime, endTime, excludeId = null) => {
+        const { data: existingBookings, error } = await supabase
+            .from('bookings')
+            .select('id, booking_id, start_time, end_time, status')
+            .eq('room_id', roomId)
+            .eq('booking_date', date)
+            .neq('status', 'CANCELLED');
+
+        if (error || !existingBookings) return false;
+
+        // Simple overlap logic: (StartA < EndB) && (EndA > StartB)
+        return existingBookings.some(b => {
+            const bId = b.id || b.booking_id;
+            if (excludeId && bId === excludeId) return false;
+            
+            const bStart = b.start_time.substring(0, 5);
+            const bEnd = b.end_time.substring(0, 5);
+            const sStart = startTime.substring(0, 5);
+            const sEnd = endTime.substring(0, 5);
+
+            return (sStart < bEnd) && (sEnd > bStart);
+        });
     };
 
     const triggerWebhook = async (action, payload) => {
@@ -94,19 +118,18 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
         let endISO = '';
         
         if (dateRaw && start) {
-            // Safe split to avoid crash if date is weirdly formatted
             const cleanDate = typeof dateRaw === 'string' ? dateRaw.split('T')[0] : new Date().toISOString().split('T')[0];
             const cleanStart = (start || '').substring(0, 5);
-            startISO = `${cleanDate}T${cleanStart}:00.000Z`;
+            // 🚀 Timezone Fix: Remove 'Z' to allow local time interpretation
+            startISO = `${cleanDate}T${cleanStart}:00`;
         }
         if (dateRaw && end) {
             const cleanDate = typeof dateRaw === 'string' ? dateRaw.split('T')[0] : new Date().toISOString().split('T')[0];
             const cleanEnd = (end || '').substring(0, 5);
-            endISO = `${cleanDate}T${cleanEnd}:00.000Z`;
+            endISO = `${cleanDate}T${cleanEnd}:00`;
         }
 
         try {
-            // 🚀 PURGE all potential time conflicts
             const { 
                 start_date_time, end_date_time, 
                 start_time, end_time, 
@@ -144,6 +167,21 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
         const isEditing = !!initialData?.id || !!initialData?.booking_id;
         const targetId = initialData?.id || initialData?.booking_id;
 
+        // 🚀 Conflict Guard (Check for overlaps)
+        const hasConflict = await checkConflicts(
+            formData.room_id, 
+            formData.date, 
+            formData.startTime, 
+            formData.endTime, 
+            targetId
+        );
+
+        if (hasConflict) {
+            showToast("This room is already occupied during the selected time.", "error");
+            setLoading(false);
+            return;
+        }
+
         const payload = {
             title: formData.title,
             room_id: formData.room_id,
@@ -157,7 +195,6 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
             status: 'CONFIRMED'
         };
 
-        // 🚀 Watchdog Timer (Safety Power - Unconditional Reset)
         const watchdog = setTimeout(() => {
             setLoading(false);
             onClose();
@@ -165,14 +202,12 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
         }, 5000);
 
         try {
-            // 🚀 1. DB SAVE
             let dbError;
             if (isEditing && targetId) {
-                // Strictly match the ID as a string for indexed speed
                 const { error } = await supabase
                     .from('bookings')
                     .update(payload)
-                    .match({ [targetId.length > 10 ? 'booking_id' : 'id']: targetId }); 
+                    .match({ [targetId.toString().length > 10 ? 'booking_id' : 'id']: targetId }); 
                 dbError = error;
             } else {
                 const { error } = await supabase
@@ -183,17 +218,14 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
 
             if (dbError) throw dbError;
 
-            // 🚀 2. IMMEDIATE UI RELEASE (No waiting for background)
             clearTimeout(watchdog);
             setLoading(false);
             onClose();
             showToast(isEditing ? "Meeting updated successfully!" : "Meeting booked successfully!", "success");
             
-            // 🚀 3. BACKGROUND UPDATES
             if (onSuccess) onSuccess();
             if (refreshBookings) refreshBookings();
 
-            // 🚀 3. WEBHOOK (Non-blocking background fire)
             const finalPayload = { 
                 ...payload, 
                 room_name: rooms.find(r => r.id === payload.room_id)?.name || 'Room' 
@@ -203,7 +235,6 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
 
         } catch (err) {
             clearTimeout(watchdog);
-            console.error("Booking Error:", err);
             showToast(err.message || "Operation failed", "error");
             setLoading(false);
         }

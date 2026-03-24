@@ -105,8 +105,20 @@ const Rooms = () => {
         e.preventDefault();
         setLoading(true);
 
+        // 🚀 Duplication Guard (Check for existing room names)
+        if (!editingRoom) {
+            const isDuplicate = rooms.some(r => 
+                (r.room_name || r.name || '').toLowerCase() === formData.name.trim().toLowerCase()
+            );
+            if (isDuplicate) {
+                showToast("A room with this name already exists. Please use a unique name.", "error");
+                setLoading(false);
+                return;
+            }
+        }
+
         const roomObj = {
-            room_name: formData.name,
+            room_name: formData.name.trim(),
             floor_location: formData.location || 'A1',
             capacity: parseInt(formData.capacity) || 10,
             amenities: formData.amenities || '',

@@ -104,8 +104,15 @@ const Bookings = () => {
         }, 3000);
 
         try {
-            const bookingToCancel = bookings.find(b => (b.booking_id === id || b.id === id));
-            const { error } = await supabase.from('bookings').update({ status: 'CANCELLED' }).or(`booking_id.eq.${id},id.eq.${id}`);
+            const bookingToCancel = bookings.find(b => (String(b.booking_id) === String(id) || String(b.id) === String(id)));
+            
+            // 🚀 Determine the correct column and value type for the query
+            const isNumericId = !isNaN(id) && String(id).length < 10;
+            const query = isNumericId 
+                ? supabase.from('bookings').update({ status: 'CANCELLED' }).eq('id', parseInt(id))
+                : supabase.from('bookings').update({ status: 'CANCELLED' }).eq('booking_id', id);
+
+            const { error } = await query;
             
             if (error) throw error;
             
