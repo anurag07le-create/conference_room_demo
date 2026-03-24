@@ -59,16 +59,9 @@ const Login = () => {
     }, [location]);
 
     useEffect(() => {
-        if (user) {
-            const actualRole = user.role?.toUpperCase();
-            // Respect the intent if possible, otherwise default to actual role
-            if (role === 'ADMIN' && actualRole === 'ADMIN') {
-                navigate('/admin');
-            } else {
-                navigate('/user'); // Default to user view if intended or if forced by role
-            }
-        }
-    }, [user, navigate, role]);
+        // Bhai! Auto-redirect disabled so user can explicitly see login page to switch accounts if needed.
+        // We only redirect if they just successfully logged in inside handleSubmit.
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -90,7 +83,10 @@ const Login = () => {
                 if (role === 'ADMIN' && actualRole !== 'ADMIN') {
                     setError('Access Denied: You do not have Administrator privileges.');
                     setLoading(false);
-                    // Optionally logout if we don't want them logged in at all in this state
+                } else {
+                    // Manual redirect after success
+                    const target = (role === 'ADMIN' && actualRole === 'ADMIN') ? '/admin' : '/user';
+                    navigate(target);
                 }
             }
         } catch (err) {
@@ -180,7 +176,7 @@ const Login = () => {
                                     onClick={() => setRole('EMPLOYEE')}
                                     className={`relative z-10 flex-1 py-2.5 text-sm font-bold transition-colors duration-300 ${role === 'EMPLOYEE' ? 'text-pucho-blue' : 'text-gray-400'}`}
                                 >
-                                    Dashboard
+                                    Employee
                                 </button>
                                 <button 
                                     type="button"

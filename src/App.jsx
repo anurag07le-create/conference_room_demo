@@ -56,16 +56,7 @@ const ProtectedRoute = ({ children, allowedRole = null }) => {
 };
 
 const PublicRoute = ({ children }) => {
-    const { user, loading } = useAuth();
-
-    // Wait for auth to finish initializing
-    if (loading) return <LoadingScreen />;
-    
-    if (user) {
-        // Only redirect once we know the role from user object
-        const target = user.role?.toUpperCase() === 'ADMIN' ? "/admin" : "/user";
-        return <Navigate to={target} replace />;
-    }
+    // Bhai! Removed auto-redirect so user can manually go to /login to switch accounts.
     return children;
 };
 
