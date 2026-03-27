@@ -10,9 +10,9 @@ import { Calendar, Clock, Users, BookOpen, AlertCircle, Loader2 } from 'lucide-r
 const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
     const { user, profile } = useAuth();
     const { showToast } = useToast();
-    const { rooms: dataRooms, refreshBookings } = useData(); 
+    const { rooms: dataRooms, refreshBookings } = useData();
     const [loading, setLoading] = useState(false);
-    
+
     const [formData, setFormData] = useState({
         title: '',
         room_id: '',
@@ -24,7 +24,7 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
         attendee_emails: ''
     });
 
-    const WEBHOOK_URL = import.meta.env.VITE_SMART_COMM_WEBHOOK_URL || "https://studio.pucho.ai/api/v1/webhooks/HHRERjvYyx4TblQt65NLD";
+    const WEBHOOK_URL = import.meta.env.VITE_SMART_COMM_WEBHOOK_URL || "https://studio.pucho.ai/api/v1/webhooks/8F0t3Zmk3XRABYJ8P77k6";
 
     // Standardize room mapping from context
     const rooms = (dataRooms || []).map(r => ({
@@ -51,7 +51,7 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                 const now = new Date();
                 const start = new Date(now.getTime() + 30 * 60000);
                 const end = new Date(start.getTime() + 60 * 60000);
-                
+
                 setFormData({
                     startTime: start.toTimeString().substring(0, 5),
                     endTime: end.toTimeString().substring(0, 5),
@@ -75,7 +75,7 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
         if (!formData.room_id) return "Please select a room.";
         if (start < now) return "Start time must be in the future.";
         if (end <= start) return "End time must be after start time.";
-        
+
         const selectedRoom = rooms.find(r => r.id === formData.room_id);
         if (selectedRoom && Number(formData.attendees) > Number(selectedRoom.capacity)) {
             return `This room has a maximum capacity of ${selectedRoom.capacity}.`;
@@ -98,7 +98,7 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
         return existingBookings.some(b => {
             const bId = b.id || b.booking_id;
             if (excludeId && bId === excludeId) return false;
-            
+
             const bStart = b.start_time.substring(0, 5);
             const bEnd = b.end_time.substring(0, 5);
             const sStart = startTime.substring(0, 5);
@@ -113,10 +113,10 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
         const dateRaw = payload.booking_date || payload.date;
         const start = payload.start_time;
         const end = payload.end_time;
-        
+
         let startISO = '';
         let endISO = '';
-        
+
         if (dateRaw && start) {
             const cleanDate = typeof dateRaw === 'string' ? dateRaw.split('T')[0] : new Date().toISOString().split('T')[0];
             const cleanStart = (start || '').substring(0, 5);
@@ -130,11 +130,11 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
         }
 
         try {
-            const { 
-                start_date_time, end_date_time, 
-                start_time, end_time, 
-                startTime, endTime, 
-                ...cleanPayload 
+            const {
+                start_date_time, end_date_time,
+                start_time, end_time,
+                startTime, endTime,
+                ...cleanPayload
             } = payload;
 
             await fetch(WEBHOOK_URL, {
@@ -169,10 +169,10 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
 
         // 🚀 Conflict Guard (Check for overlaps)
         const hasConflict = await checkConflicts(
-            formData.room_id, 
-            formData.date, 
-            formData.startTime, 
-            formData.endTime, 
+            formData.room_id,
+            formData.date,
+            formData.startTime,
+            formData.endTime,
             targetId
         );
 
@@ -207,7 +207,7 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                 const { error } = await supabase
                     .from('bookings')
                     .update(payload)
-                    .match({ [targetId.toString().length > 10 ? 'booking_id' : 'id']: targetId }); 
+                    .match({ [targetId.toString().length > 10 ? 'booking_id' : 'id']: targetId });
                 dbError = error;
             } else {
                 const { error } = await supabase
@@ -222,13 +222,13 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
             setLoading(false);
             onClose();
             showToast(isEditing ? "Meeting updated successfully!" : "Meeting booked successfully!", "success");
-            
+
             if (onSuccess) onSuccess();
             if (refreshBookings) refreshBookings();
 
-            const finalPayload = { 
-                ...payload, 
-                room_name: rooms.find(r => r.id === payload.room_id)?.name || 'Room' 
+            const finalPayload = {
+                ...payload,
+                room_name: rooms.find(r => r.id === payload.room_id)?.name || 'Room'
             };
             triggerWebhook(isEditing ? 'edit_booking' : 'create_booking', finalPayload)
                 .catch(e => console.error("Webhook Background Trace:", e.message));
@@ -249,13 +249,13 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                         <BookOpen size={12} className="text-[#4F27E9]" />
                         Meeting Title
                     </label>
-                    <input 
+                    <input
                         required
-                        type="text" 
-                        placeholder="e.g. Design Sprint / Client Call" 
+                        type="text"
+                        placeholder="e.g. Design Sprint / Client Call"
                         value={formData.title}
-                        onChange={(e) => setFormData({...formData, title: e.target.value})}
-                        className="w-full h-12 px-5 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 transition-all font-bold text-gray-900" 
+                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        className="w-full h-12 px-5 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 transition-all font-bold text-gray-900"
                     />
                 </div>
 
@@ -263,10 +263,10 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                     {/* Select Room - Pre-populated from context */}
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Select Room</label>
-                        <select 
+                        <select
                             required
                             value={formData.room_id}
-                            onChange={(e) => setFormData({...formData, room_id: e.target.value})}
+                            onChange={(e) => setFormData({ ...formData, room_id: e.target.value })}
                             className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold text-gray-900 appearance-none cursor-pointer"
                         >
                             <option value="">Select a room</option>
@@ -281,13 +281,13 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Attendees</label>
                         <div className="relative">
                             <Users size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input 
+                            <input
                                 required
-                                type="number" 
+                                type="number"
                                 min="1"
                                 value={formData.attendees}
-                                onChange={(e) => setFormData({...formData, attendees: e.target.value})}
-                                className="w-full h-12 pl-12 pr-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold text-gray-900" 
+                                onChange={(e) => setFormData({ ...formData, attendees: e.target.value })}
+                                className="w-full h-12 pl-12 pr-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold text-gray-900"
                             />
                         </div>
                     </div>
@@ -296,33 +296,33 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</label>
-                        <input 
+                        <input
                             required
-                            type="date" 
+                            type="date"
                             value={formData.date}
-                            onChange={(e) => setFormData({...formData, date: e.target.value})}
-                            className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold transition-all" 
+                            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                            className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold transition-all"
                         />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2 text-gray-900">
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Start Time</label>
-                            <input 
+                            <input
                                 required
-                                type="time" 
+                                type="time"
                                 value={formData.startTime}
-                                onChange={(e) => setFormData({...formData, startTime: e.target.value})}
-                                className="w-full h-12 px-3 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold transition-all" 
+                                onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                                className="w-full h-12 px-3 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold transition-all"
                             />
                         </div>
                         <div className="space-y-2 text-gray-900">
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">End Time</label>
-                            <input 
+                            <input
                                 required
-                                type="time" 
+                                type="time"
                                 value={formData.endTime}
-                                onChange={(e) => setFormData({...formData, endTime: e.target.value})}
-                                className="w-full h-12 px-3 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold transition-all" 
+                                onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                                className="w-full h-12 px-3 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold transition-all"
                             />
                         </div>
                     </div>
@@ -331,29 +331,29 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                 {/* Attendee Emails */}
                 <div className="space-y-2">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Attendee Emails</label>
-                    <input 
-                        type="text" 
+                    <input
+                        type="text"
                         placeholder="email1@gmail.com, email2@gmail.com"
                         value={formData.attendee_emails}
-                        onChange={(e) => setFormData({...formData, attendee_emails: e.target.value})}
-                        className="w-full h-12 px-5 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 transition-all font-bold text-gray-700" 
+                        onChange={(e) => setFormData({ ...formData, attendee_emails: e.target.value })}
+                        className="w-full h-12 px-5 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 transition-all font-bold text-gray-700"
                     />
                 </div>
 
                 {/* Agenda */}
                 <div className="space-y-2 text-gray-900">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Meeting Agenda</label>
-                    <textarea 
+                    <textarea
                         rows="2"
                         placeholder="What's this meeting about?"
                         value={formData.description}
-                        onChange={(e) => setFormData({...formData, description: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         className="w-full p-5 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-medium text-gray-700 resize-none transition-all"
                     />
                 </div>
 
-                <Button 
-                    type="submit" 
+                <Button
+                    type="submit"
                     disabled={loading}
                     className="w-full h-14 bg-[#4F27E9] text-white hover:bg-[#3D1DB3] rounded-2xl font-black text-xs tracking-widest uppercase shadow-lg shadow-indigo-200 disabled:opacity-50"
                 >

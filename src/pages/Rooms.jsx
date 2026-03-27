@@ -30,7 +30,7 @@ const Rooms = () => {
         status: true
     });
 
-    const WEBHOOK_URL = import.meta.env.VITE_SMART_COMM_WEBHOOK_URL || "https://studio.pucho.ai/api/v1/webhooks/HHRERjvYyx4TblQt65NLD";
+    const WEBHOOK_URL = import.meta.env.VITE_SMART_COMM_WEBHOOK_URL || "https://studio.pucho.ai/api/v1/webhooks/8F0t3Zmk3XRABYJ8P77k6";
 
     useEffect(() => {
         const handleOpenRoomEvent = () => handleOpenModal();
@@ -40,19 +40,19 @@ const Rooms = () => {
 
     useEffect(() => {
         const fetchBookings = async () => {
-             const startOfWeek = new Date();
-             startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-             startOfWeek.setHours(0, 0, 0, 0);
+            const startOfWeek = new Date();
+            startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+            startOfWeek.setHours(0, 0, 0, 0);
 
-             const { data: bookingData, error: bookingError } = await supabase
-                 .from('bookings')
-                 .select('*')
-                 .gte('booking_date', startOfWeek.toISOString().split('T')[0])
-                 .eq('status', 'CONFIRMED');
+            const { data: bookingData, error: bookingError } = await supabase
+                .from('bookings')
+                .select('*')
+                .gte('booking_date', startOfWeek.toISOString().split('T')[0])
+                .eq('status', 'CONFIRMED');
 
-             if (!bookingError) {
-                 setBookings(bookingData || []);
-             }
+            if (!bookingError) {
+                setBookings(bookingData || []);
+            }
         };
         if (user) fetchBookings();
     }, [user]);
@@ -113,7 +113,7 @@ const Rooms = () => {
 
         // 🚀 Duplication Guard (Check for existing room names)
         if (!editingRoom) {
-            const isDuplicate = rooms.some(r => 
+            const isDuplicate = rooms.some(r =>
                 (r.room_name || r.name || '').toLowerCase() === formData.name.trim().toLowerCase()
             );
             if (isDuplicate) {
@@ -159,12 +159,12 @@ const Rooms = () => {
             // 🚀 2. SUCCESS PATH (Immediate UI Update)
             clearTimeout(watchdog);
             showToast(`Room ${editingRoom ? 'updated' : 'added'} successfully!`, 'success');
-            
+
             // WEBHOOK (Non-blocking background)
             triggerWebhook(editingRoom ? 'edit_room' : 'add_room', {
                 ...roomObj,
                 room_id: editingRoom ? (editingRoom.id || editingRoom.room_id) : undefined
-            }).catch(() => {});
+            }).catch(() => { });
 
             setIsModalOpen(false);
             resetForm();
@@ -184,11 +184,11 @@ const Rooms = () => {
             const targetId = room.room_id || room.id;
             const { error } = await supabase.from('rooms').update({ status: newStatus }).eq('room_id', targetId);
             if (error) throw error;
-            
+
             showToast(`Room ${newStatus === 'ACTIVE' ? 'activated' : 'deactivated'}`, newStatus === 'ACTIVE' ? 'success' : 'warning');
             triggerWebhook('toggle_room_status', { room_id: targetId, status: newStatus });
             refreshRooms();
-        } catch(error) {
+        } catch (error) {
             showToast('Error: ' + error.message, 'error');
         } finally {
             setLoading(false);
@@ -270,7 +270,7 @@ const Rooms = () => {
                                                 <div className="flex flex-col">
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-black text-[15px] text-[#111834] group-hover/row:text-[#4F27E9] transition-colors">{name}</span>
-                                                        <button 
+                                                        <button
                                                             className="relative group/info"
                                                             onClick={() => showToast(`${name}: ${room.amenities || 'No amenities listed.'}`, 'info')}
                                                         >
@@ -303,7 +303,7 @@ const Rooms = () => {
                                             </div>
                                         </td>
                                         <td className="px-8 py-6">
-                                            <Badge 
+                                            <Badge
                                                 status={status}
                                                 className="px-4 py-1.5 uppercase font-black text-[10px] tracking-widest shadow-sm rounded-xl"
                                             >
@@ -313,24 +313,24 @@ const Rooms = () => {
                                         {isAdmin && (
                                             <td className="px-8 py-6">
                                                 <div className="flex items-center justify-center gap-2">
-                                                    <button 
+                                                    <button
                                                         onClick={() => {
                                                             const ns = isActive ? 'INACTIVE' : 'ACTIVE';
                                                             handleToggleStatus(room, ns);
-                                                        }} 
+                                                        }}
                                                         className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all border border-transparent hover:shadow-sm ${isActive ? 'text-green-500 bg-green-50/50 hover:bg-green-50 hover:border-green-100' : 'text-gray-400 bg-gray-50/50 hover:bg-indigo-50 hover:text-[#4F27E9] hover:border-indigo-100'}`}
                                                         title={isActive ? "Deactivate Room" : "Activate Room"}
                                                     >
                                                         <Power size={18} />
                                                     </button>
-                                                    <button 
-                                                        onClick={() => handleOpenModal(room)} 
+                                                    <button
+                                                        onClick={() => handleOpenModal(room)}
                                                         className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-[#4F27E9] bg-gray-50/50 hover:bg-white rounded-xl border border-transparent hover:border-gray-100 hover:shadow-sm transition-all"
                                                     >
                                                         <Edit2 size={18} />
                                                     </button>
-                                                    <button 
-                                                        onClick={() => setDeleteConfirm(room)} 
+                                                    <button
+                                                        onClick={() => setDeleteConfirm(room)}
                                                         className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-500 bg-gray-50/50 hover:bg-white rounded-xl border border-transparent hover:border-red-50 hover:shadow-sm transition-all"
                                                     >
                                                         <Trash2 size={18} />
@@ -362,7 +362,7 @@ const Rooms = () => {
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <h3 className="font-black text-base text-[#111834] leading-tight">{room.room_name || room.name}</h3>
-                                            <button 
+                                            <button
                                                 onClick={() => showToast(`${room.room_name || room.name}: ${room.amenities || 'No amenities.'}`, 'info')}
                                                 className="text-gray-300 hover:text-[#4F27E9]"
                                             >
@@ -398,13 +398,13 @@ const Rooms = () => {
 
                             {isAdmin && (
                                 <div className="flex items-center gap-2 pt-1">
-                                    <button 
+                                    <button
                                         onClick={() => handleOpenModal(room)}
                                         className="flex-1 bg-indigo-50 text-[#4F27E9] h-11 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-wider border border-indigo-100"
                                     >
                                         <Edit2 size={14} /> Edit Room
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={() => {
                                             const ns = isActive ? 'INACTIVE' : 'ACTIVE';
                                             handleToggleStatus(room, ns);
@@ -413,7 +413,7 @@ const Rooms = () => {
                                     >
                                         <Power size={18} />
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={() => setDeleteConfirm(room)}
                                         className="w-11 h-11 flex items-center justify-center bg-red-50 text-red-400 rounded-xl border border-red-100"
                                     >
@@ -430,24 +430,24 @@ const Rooms = () => {
                 <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase">Room Name</label>
-                        <input required type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-2 bg-gray-50 border rounded-xl" />
+                        <input required type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-2 bg-gray-50 border rounded-xl" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-gray-500 uppercase">Location</label>
-                            <input required type="text" value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className="w-full px-4 py-2 bg-gray-50 border rounded-xl" />
+                            <input required type="text" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} className="w-full px-4 py-2 bg-gray-50 border rounded-xl" />
                         </div>
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-gray-500 uppercase">Capacity</label>
-                            <input required type="number" value={formData.capacity} onChange={(e) => setFormData({...formData, capacity: e.target.value})} className="w-full px-4 py-2 bg-gray-50 border rounded-xl" />
+                            <input required type="number" value={formData.capacity} onChange={(e) => setFormData({ ...formData, capacity: e.target.value })} className="w-full px-4 py-2 bg-gray-50 border rounded-xl" />
                         </div>
                     </div>
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase">Amenities</label>
-                        <textarea rows="2" value={formData.amenities} onChange={(e) => setFormData({...formData, amenities: e.target.value})} className="w-full px-4 py-2 bg-gray-50 border rounded-xl" />
+                        <textarea rows="2" value={formData.amenities} onChange={(e) => setFormData({ ...formData, amenities: e.target.value })} className="w-full px-4 py-2 bg-gray-50 border rounded-xl" />
                     </div>
                     <div className="flex items-center gap-3">
-                        <input type="checkbox" checked={formData.status} onChange={(e) => setFormData({...formData, status: e.target.checked})} className="w-4 h-4" />
+                        <input type="checkbox" checked={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.checked })} className="w-4 h-4" />
                         <span className="text-sm font-bold text-gray-700">Active</span>
                     </div>
                     <div className="flex justify-end gap-3 pt-4">
@@ -457,7 +457,7 @@ const Rooms = () => {
                 </form>
             </Modal>
 
-            <ConfirmDialog 
+            <ConfirmDialog
                 isOpen={!!deleteConfirm}
                 onClose={() => setDeleteConfirm(null)}
                 onConfirm={() => handleDelete(deleteConfirm.room_id || deleteConfirm.id)}

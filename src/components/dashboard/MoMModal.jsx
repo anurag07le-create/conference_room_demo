@@ -10,7 +10,7 @@ const MoMModal = ({ isOpen, onClose, booking, onSuccess }) => {
     const [notes, setNotes] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const MOM_BOT_WEBHOOK_URL = "https://studio.pucho.ai/api/v1/webhooks/mS5F9P2kL1O8R3T4V7B6";
+    const MOM_BOT_WEBHOOK_URL = "https://studio.pucho.ai/api/v1/webhooks/QGd9SnHTLLRq57ezXGTJl";
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -45,7 +45,7 @@ const MoMModal = ({ isOpen, onClose, booking, onSuccess }) => {
             // 🚀 2. Immediate DB Update (Client-side reflects change instantly)
             const { error: dbError } = await supabase
                 .from('bookings')
-                .update({ 
+                .update({
                     mom_notes: notes
                 })
                 .eq('booking_id', booking.booking_id || booking.id);
@@ -94,10 +94,10 @@ const MoMModal = ({ isOpen, onClose, booking, onSuccess }) => {
                         Meeting Notes / Highlights
                         <span className="text-[10px] text-gray-400 font-normal uppercase tracking-wider">AI will summarize these</span>
                     </label>
-                    <textarea 
+                    <textarea
                         required
-                        rows="6" 
-                        placeholder="Type the key decisions, action items, or discussion points here..." 
+                        rows="6"
+                        placeholder="Type the key decisions, action items, or discussion points here..."
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-pucho-blue/30 focus:border-pucho-blue transition-all resize-none text-sm leading-relaxed"
@@ -111,10 +111,10 @@ const MoMModal = ({ isOpen, onClose, booking, onSuccess }) => {
                 </div>
 
                 <div className="pt-2 flex justify-end gap-3">
-                    <button 
-                        type="button" 
+                    <button
+                        type="button"
                         disabled={loading}
-                        onClick={onClose} 
+                        onClick={onClose}
                         className="px-6 py-2 rounded-xl text-gray-500 hover:bg-gray-50 font-medium transition-colors"
                     >
                         Cancel

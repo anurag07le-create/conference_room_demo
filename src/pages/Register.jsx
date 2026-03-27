@@ -48,7 +48,7 @@ const Register = () => {
     const [customDept, setCustomDept] = useState('');
     const [cooldown, setCooldown] = useState(0);
 
-    const WEBHOOK_URL = "https://studio.pucho.ai/api/v1/webhooks/fGjOoM7eciSpGACaz09jq";
+    const WEBHOOK_URL = "https://studio.pucho.ai/api/v1/webhooks/pdpw6rqE1RKszbAOhmtuC";
 
     const triggerWebhook = async (action, payload) => {
         try {

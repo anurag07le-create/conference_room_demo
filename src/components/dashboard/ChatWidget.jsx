@@ -4,13 +4,13 @@ import { useAuth } from '../../context/AuthContext';
 
 const ChatWidget = () => {
     const { user, profile } = useAuth();
-    
+
     // Wait for user to load before checking role
     if (!user) return null;
-    
+
     // UC-7: Chatbot is only for Employees
     const isEmployee = user?.role?.toUpperCase() === 'EMPLOYEE';
-    
+
     if (!isEmployee) return null;
 
     const [isOpen, setIsOpen] = useState(false);
@@ -22,7 +22,7 @@ const ChatWidget = () => {
     const messagesEndRef = useRef(null);
 
     // Replace with your actual UC-7 Webhook URL from Pucho Studio
-    const CHATBOT_WEBHOOK_URL = import.meta.env.VITE_SMART_COMM_WEBHOOK_URL || "https://studio.pucho.ai/api/v1/webhooks/HHRERjvYyx4TblQt65NLD";
+    const CHATBOT_WEBHOOK_URL = import.meta.env.VITE_SMART_COMM_WEBHOOK_URL || "https://studio.pucho.ai/api/v1/webhooks/8F0t3Zmk3XRABYJ8P77k6";
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -51,7 +51,7 @@ const ChatWidget = () => {
         try {
             // Temporarily disabled - Pucho workflow needs fixing
             // TODO: Re-enable when Pucho fixes their AI model
-            
+
             // Simulate bot response for now
             setTimeout(() => {
                 setMessages(prev => [...prev, {
@@ -62,7 +62,7 @@ const ChatWidget = () => {
                 }]);
                 setIsTyping(false);
             }, 1000);
-            
+
             /*
             const response = await fetch(CHATBOT_WEBHOOK_URL, {
                 method: "POST",
@@ -139,13 +139,12 @@ const ChatWidget = () => {
                             <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                                 <div className={`max-w-[80%] flex gap-2 ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                                     <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] ${msg.sender === 'user' ? 'bg-[#4F27E9] text-white' : 'bg-gray-200 text-gray-500'}`}>
-                                        {msg.sender === 'user' ? <User size={14}/> : <Bot size={14}/>}
+                                        {msg.sender === 'user' ? <User size={14} /> : <Bot size={14} />}
                                     </div>
-                                    <div className={`p-3 rounded-2xl text-[13px] shadow-sm ${
-                                        msg.sender === 'user' 
-                                        ? 'bg-[#4F27E9] text-white rounded-tr-none' 
-                                        : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
-                                    }`}>
+                                    <div className={`p-3 rounded-2xl text-[13px] shadow-sm ${msg.sender === 'user'
+                                            ? 'bg-[#4F27E9] text-white rounded-tr-none'
+                                            : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
+                                        }`}>
                                         {msg.text}
                                         <p className={`text-[9px] mt-1 ${msg.sender === 'user' ? 'text-white/60 text-right' : 'text-gray-400'}`}>
                                             {msg.time}

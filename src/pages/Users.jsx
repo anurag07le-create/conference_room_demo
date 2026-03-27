@@ -31,7 +31,7 @@ const Users = () => {
         department: ''
     });
 
-    const WEBHOOK_URL = "https://studio.pucho.ai/api/v1/webhooks/fGjOoM7eciSpGACaz09jq";
+    const WEBHOOK_URL = "https://studio.pucho.ai/api/v1/webhooks/pdpw6rqE1RKszbAOhmtuC";
 
     useEffect(() => {
         if (profile) {
