@@ -31,7 +31,7 @@ const Users = () => {
         department: ''
     });
 
-    const WEBHOOK_URL = import.meta.env.VITE_ONBOARDING_WEBHOOK_URL || "https://studio.pucho.ai/api/v1/webhooks/fGjOoM7eciSpGACaz09jq";
+    const WEBHOOK_URL = window?.__VITE_ONBOARDING_WEBHOOK_URL__ || import.meta.env.VITE_ONBOARDING_WEBHOOK_URL || "https://studio.pucho.ai/api/v1/webhooks/fGjOoM7eciSpGACaz09jq";
 
     useEffect(() => {
         if (profile) {

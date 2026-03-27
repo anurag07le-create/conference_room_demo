@@ -10,7 +10,7 @@ const MoMModal = ({ isOpen, onClose, booking, onSuccess }) => {
     const [notes, setNotes] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const WEBHOOK_URL = import.meta.env.VITE_MOM_BOT_WEBHOOK_URL || "https://studio.pucho.ai/api/v1/webhooks/jogPQpo1j0siWOyzCxIzI";
+    const MOM_BOT_WEBHOOK_URL = window?.__VITE_MOM_BOT_WEBHOOK_URL__ || import.meta.env.VITE_MOM_BOT_WEBHOOK_URL || "https://studio.pucho.ai/api/v1/webhooks/mS5F9P2kL1O8R3T4V7B6";
 
     const handleSubmit = async (e) => {
         e.preventDefault();
