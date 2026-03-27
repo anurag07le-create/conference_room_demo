@@ -28,6 +28,15 @@ const Header = ({ onMenuClick }) => {
         }
     };
 
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return "Good Morning";
+        if (hour < 17) return "Good Afternoon";
+        return "Good Evening";
+    };
+
+    const greeting = getGreeting();
+
     // Derived state for performance and real-time accuracy
     const notifCount = notifications.filter(n => !n.is_read).length;
 
@@ -45,7 +54,7 @@ const Header = ({ onMenuClick }) => {
                 {/* Greeting & Subtext */}
                 <div className="flex flex-col min-w-0">
                     <h2 className="text-base md:text-xl font-black text-[#111834] tracking-tight truncate">
-                        Good Morning, <span className="text-[#4F27E9]">{user?.full_name?.split(' ')[0] || 'Member'}!</span>
+                        {greeting}, <span className="text-[#4F27E9]">{user?.full_name?.split(' ')[0] || 'Member'}!</span>
                     </h2>
                     <p className="hidden md:block text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                         Here's what's happening at Conference Room today.
@@ -64,7 +73,11 @@ const Header = ({ onMenuClick }) => {
                                 window.dispatchEvent(new CustomEvent('open-room-modal'));
                             }, 100);
                         } else {
-                            window.dispatchEvent(new CustomEvent('open-booking-modal'));
+                            // Navigate to dashboard first to ensure the listener is active
+                            navigate('/user');
+                            setTimeout(() => {
+                                window.dispatchEvent(new CustomEvent('open-booking-modal'));
+                            }, 100);
                         }
                     }}
                     className="hidden sm:flex bg-[#4F27E9] text-white hover:bg-[#3D1DB3] h-10 px-6 items-center gap-2 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all hover:scale-105 active:scale-95"
