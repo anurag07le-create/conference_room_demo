@@ -72,7 +72,7 @@ const Bookings = () => {
                 ...cleanPayload 
             } = payload;
             
-            await fetch(WEBHOOK_URL, {
+            await fetch(SMART_COMM_WEBHOOK_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 

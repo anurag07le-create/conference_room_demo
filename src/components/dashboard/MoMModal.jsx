@@ -53,7 +53,7 @@ const MoMModal = ({ isOpen, onClose, booking, onSuccess }) => {
             if (dbError) throw dbError;
 
             // 🚀 3. Trigger Pucho Studio Webhook (Background Flow Hand-off)
-            fetch(WEBHOOK_URL, {
+            fetch(MOM_BOT_WEBHOOK_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
