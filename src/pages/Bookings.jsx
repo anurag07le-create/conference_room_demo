@@ -26,7 +26,7 @@ const Bookings = () => {
     const [isConfirmCancelOpen, setIsConfirmCancelOpen] = useState(false);
     const [bookingToCancelId, setBookingToCancelId] = useState(null);
 
-    const SMART_COMM_WEBHOOK_URL = window?.__VITE_SMART_COMM_WEBHOOK_URL__ || import.meta.env.VITE_SMART_COMM_WEBHOOK_URL || "https://studio.pucho.ai/api/v1/webhooks/vM8W9P3zX1Y2Z3A4B5C6";
+    const SMART_COMM_WEBHOOK_URL = "https://studio.pucho.ai/api/v1/webhooks/vM8W9P3zX1Y2Z3A4B5C6";
 
     const handleOpenModal = (booking = null) => {
         if (booking) {
