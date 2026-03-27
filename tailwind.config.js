@@ -4,7 +4,7 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['"Space Grotesk"', 'sans-serif'], // The Identity Font
+                sans: ['Inter', 'sans-serif'],
             },
             colors: {
                 pucho: {

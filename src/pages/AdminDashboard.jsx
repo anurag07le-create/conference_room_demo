@@ -29,21 +29,10 @@ const AdminDashboard = () => {
 
             {/* Main Content Wrapper */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                {/* Mobile Header */}
-                <div className="lg:hidden flex items-center gap-4 p-4 bg-white border-b border-gray-100 z-[150]">
-                    <button 
-                        onClick={() => setSidebarOpen(true)}
-                        className="p-2 hover:bg-gray-100 rounded-lg"
-                    >
-                        <Menu size={24} />
-                    </button>
-                    <img src={logo} alt="Logo" className="h-8" />
-                </div>
+                {/* Responsive Header */}
+                <Header onMenuClick={() => setSidebarOpen(true)} />
 
-                {/* Desktop Header: Sticky Top */}
-                <div className="hidden lg:block relative z-[150]">
-                    <Header />
-                </div>
+                {/* Scrollable Content Area */}
 
                 {/* Scrollable Content Area */}
                 <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 relative z-10 custom-scrollbar">

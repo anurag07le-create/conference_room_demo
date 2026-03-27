@@ -136,9 +136,29 @@ const Bookings = () => {
 
     if (dataLoading) return <div className="p-8 text-center text-gray-500">Loading bookings...</div>;
 
-    // Search Logic
+    const handleRefresh = async () => {
+        setLoading(true);
+        try {
+            if (refreshBookings) await refreshBookings();
+            showToast('Bookings refreshed', 'success');
+        } catch (e) {
+            showToast('Refresh failed', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Search & Role Logic
     const q = (searchQuery || '').toLowerCase();
+    const userEmail = user?.email?.toLowerCase();
+    const isAdmin = profile?.role?.toUpperCase() === 'ADMIN' || user?.role?.toUpperCase() === 'ADMIN';
+
     const filteredBookings = bookings.filter(b => {
+        // 1. Role Filter
+        const isOwner = b.user_email?.toLowerCase() === userEmail;
+        if (!isAdmin && !isOwner) return false;
+
+        // 2. Search Filter
         if (!q) return true;
         return (
             b.title?.toLowerCase().includes(q) ||
@@ -157,8 +177,9 @@ const Bookings = () => {
                 </div>
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={refreshBookings}
-                        className="w-12 h-12 flex items-center justify-center bg-white text-gray-400 hover:text-[#4F27E9] rounded-2xl border border-gray-100 shadow-sm transition-all hover:scale-105 active:scale-95"
+                        onClick={handleRefresh}
+                        className="w-12 h-12 flex items-center justify-center bg-white text-gray-400 hover:text-[#4F27E9] rounded-2xl border border-gray-100 shadow-sm transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+                        disabled={loading}
                     >
                         <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
                     </button>
@@ -172,8 +193,8 @@ const Bookings = () => {
                 </div>
             </div>
 
-            {/* Table Section */}
-            <div className="bg-white rounded-[40px] border border-gray-100 shadow-premium overflow-hidden">
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-white rounded-[40px] border border-gray-100 shadow-premium overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
@@ -212,7 +233,7 @@ const Bookings = () => {
                                                         </span>
                                                     )}
                                                 </div>
-                                                <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium font-['Outfit']">
+                                                <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]">
                                                     <UsersIcon size={12} className="opacity-70" />
                                                     {booking.user_email || 'pucho.ai member'}
                                                 </div>
@@ -273,6 +294,75 @@ const Bookings = () => {
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+                {filteredBookings.length === 0 ? (
+                    <div className="bg-white p-12 rounded-[32px] border border-gray-100 text-center text-gray-400">
+                        <Calendar size={32} className="mx-auto mb-3 opacity-20" />
+                        <p className="font-bold text-sm">No reservations found</p>
+                    </div>
+                ) : (
+                    filteredBookings.map((booking) => (
+                        <div key={booking.id || booking.booking_id} className="bg-white p-5 rounded-[32px] border border-gray-100 shadow-sm space-y-4">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h3 className="font-black text-lg text-[#111834] leading-tight">{booking.title || 'Team Sync'}</h3>
+                                    <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">
+                                        <UsersIcon size={10} />
+                                        {booking.user_email || 'pucho.ai member'}
+                                    </div>
+                                </div>
+                                <Badge status={booking.status} className="text-[9px] px-3 font-black tracking-widest uppercase">
+                                    {booking.status}
+                                </Badge>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 pt-2">
+                                <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Schedule</p>
+                                    <p className="text-xs font-bold text-gray-700 truncate">{booking.booking_date || booking.date}</p>
+                                    <p className="text-[10px] font-black text-[#4F27E9] mt-0.5 whitespace-nowrap">
+                                        {booking.start_time?.substring(0, 5)} - {booking.end_time?.substring(0, 5)}
+                                    </p>
+                                </div>
+                                <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Workspace</p>
+                                    <div className="flex items-center gap-1.5 mt-1">
+                                        <MapPin size={12} className="text-[#4F27E9]" />
+                                        <span className="text-[11px] font-black text-gray-700 truncate">
+                                            {booking.room_name || booking.room}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-2">
+                                <button 
+                                    onClick={() => handleOpenMoM(booking)}
+                                    className="flex-1 bg-purple-50 text-purple-600 h-12 rounded-2xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-wider border border-purple-100"
+                                >
+                                    <FileText size={16} /> Summary
+                                </button>
+                                <button 
+                                    onClick={() => handleOpenModal(booking)}
+                                    className="w-12 h-12 flex items-center justify-center bg-gray-50 text-gray-400 rounded-2xl border border-gray-100 disabled:opacity-30"
+                                    disabled={booking.status === 'CANCELLED'}
+                                >
+                                    <Edit2 size={18} />
+                                </button>
+                                <button 
+                                    onClick={() => handleCancelClick(booking.booking_id || booking.id)}
+                                    className="w-12 h-12 flex items-center justify-center bg-red-50 text-red-400 rounded-2xl border border-red-100 disabled:opacity-30"
+                                    disabled={booking.status === 'CANCELLED'}
+                                >
+                                    <XCircle size={18} />
+                                </button>
+                            </div>
+                        </div>
+                    ))
+                )}
             </div>
 
             {/* Modals */}

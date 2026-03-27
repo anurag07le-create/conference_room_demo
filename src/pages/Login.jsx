@@ -100,7 +100,7 @@ const Login = () => {
     };
 
     return (
-        <div className="h-screen w-full bg-white relative flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 overflow-hidden font-sans text-gray-900">
+        <div className="h-screen w-full bg-white relative flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 overflow-hidden text-gray-900" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
             {/* Grid Pattern - Hide on small mobile */}
             <div className="absolute inset-0 z-0 opacity-[0.4] pointer-events-none hidden sm:block"
                 style={{
@@ -129,7 +129,7 @@ const Login = () => {
                 </div>
             </div>
 
-            <div className="w-full max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-24 relative z-10 items-center py-12 lg:py-0 overflow-y-auto max-h-screen custom-scrollbar px-4">
+            <div className="w-full max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-24 relative z-10 items-center py-8 lg:py-4 px-4">
                 {/* Left Side - Marketing (Visible on all devices) */}
                 <div className="flex flex-col items-center lg:items-start text-center lg:text-left space-y-6 lg:space-y-8 lg:pl-24 w-full">
                     <div className="flex items-center gap-3">
@@ -140,7 +140,7 @@ const Login = () => {
                             <div className="text-sm md:text-base font-bold text-[#111834]">Conference Room Booking Application</div>
                             <div className="text-[8px] md:text-[10px] font-black text-purple-600 tracking-[0.2em] uppercase">POWERED BY AI AGENTS</div>
                         </div>
-                        <h1 className="text-6xl md:text-9xl font-black text-[#111834] leading-[0.9] tracking-tight">
+                        <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-[#111834] leading-[0.9] tracking-tight">
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#4F27E9] to-[#8b5cf6]">Build.</span><br />
                             <span className="text-[#8b5cf6] italic opacity-90">Automate.</span><br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#111834] via-[#4F27E9] to-[#111834]">Scale.</span>

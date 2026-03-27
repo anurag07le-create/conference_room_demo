@@ -3,24 +3,23 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
-@layer base {
-  body {
-    background-color: #f8f9fc;
-    color: #111827;
-    font-family: 'Space Grotesk', sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    letter-spacing: -0.02em;
-  }
 
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', sans-serif;
-    letter-spacing: -0.03em;
-  }
-  
-  * {
-    box-sizing: border-box;
-  }
+body {
+  background-color: #f8f9fc;
+  color: #111827;
+  font-family: 'Inter', sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.02em;
+}
+
+h1, h2, h3, h4, h5, h6, .font-sans {
+  font-family: 'Inter', sans-serif !important;
+  letter-spacing: -0.03em;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 @layer components {

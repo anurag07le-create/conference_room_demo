@@ -138,7 +138,7 @@ const Register = () => {
     };
 
     return (
-        <div className="h-screen w-full bg-white relative flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 overflow-hidden font-sans text-gray-900">
+        <div className="h-screen w-full bg-white relative flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 overflow-hidden text-gray-900" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
             {/* Grid Pattern */}
             <div className="absolute inset-0 z-0 opacity-[0.4] pointer-events-none hidden sm:block"
                 style={{
@@ -167,7 +167,7 @@ const Register = () => {
                 </div>
             </div>
 
-            <div className="w-full max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-24 relative z-10 items-center py-12 lg:py-0 overflow-y-auto max-h-screen custom-scrollbar px-4">
+            <div className="w-full max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-24 relative z-10 items-center py-4 lg:py-0 px-4">
                 {/* Left Side - Marketing */}
                 <div className="flex flex-col items-center lg:items-start text-center lg:text-left space-y-6 lg:space-y-8 lg:pl-24 w-full">
                     <div className="flex items-center gap-3">
@@ -176,14 +176,14 @@ const Register = () => {
                     <div className="space-y-4 md:space-y-6">
                         <div className="space-y-1">
                             <div className="text-sm md:text-base font-bold text-[#111834]">Conference Room Booking Application</div>
-                            <div className="text-[10px] md:text-xs font-black text-purple-600 tracking-[0.2em] uppercase">POWERED BY AI AGENTS</div>
+                            <div className="text-[8px] md:text-[10px] font-black text-purple-600 tracking-[0.2em] uppercase">POWERED BY AI AGENTS</div>
                         </div>
-                        <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-[#111834] leading-[0.9] tracking-tighter">
-                            Build.<br />
-                            <span className="text-[#8b5cf6]">Automate.</span><br />
-                            Scale.
+                        <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-[#111834] leading-[0.9] tracking-tight">
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#4F27E9] to-[#8b5cf6]">Build.</span><br />
+                            <span className="text-[#8b5cf6] italic opacity-90">Automate.</span><br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#111834] via-[#4F27E9] to-[#111834]">Scale.</span>
                         </h1>
-                        <p className="text-gray-500 text-sm md:text-lg leading-relaxed max-w-md font-medium">
+                        <p className="text-gray-500 text-sm md:text-base leading-relaxed max-w-md font-medium">
                             From data to working intelligence. Access your command center to manage automated customer communication flows.
                         </p>
                     </div>
@@ -201,10 +201,10 @@ const Register = () => {
 
                 {/* Right Side - Register Card */}
                 <div className="flex justify-center lg:justify-end">
-                    <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[32px] shadow-[0_32px_80px_-20px_rgba(0,0,0,0.08)] w-full max-w-[440px] border border-gray-50 relative">
-                        <div className="mb-6">
-                            <h2 className="text-2xl md:text-3xl font-bold text-[#111834]">Create Account</h2>
-                            <p className="text-gray-400 text-sm mt-1">Join the command center to manage your flows.</p>
+                    <div className="bg-white p-6 md:p-8 lg:p-10 rounded-2xl md:rounded-[32px] shadow-[0_32px_80px_-20px_rgba(0,0,0,0.08)] w-full max-w-[400px] md:max-w-[440px] border border-gray-100 relative">
+                        <div className="mb-4">
+                            <h2 className="text-xl md:text-2xl font-bold text-[#111834]">Create Account</h2>
+                            <p className="text-gray-400 text-xs mt-0.5">Join the command center to manage your flows.</p>
                         </div>
 
                         {error && <div className="mb-4 p-3 rounded-xl bg-red-50 text-red-600 text-xs font-medium border border-red-100">{error}</div>}
@@ -272,22 +272,22 @@ const Register = () => {
                                 </div>
                             )}
 
-                            <button
-                                type="submit"
-                                disabled={loading || cooldown > 0}
-                                className="w-full h-12 md:h-14 flex items-center justify-center gap-2 rounded-xl transition-all font-bold text-white shadow-xl disabled:opacity-70 mt-2"
-                                style={{ background: 'linear-gradient(180deg, #4F27E9 0%, #2A09B5 100%)', boxShadow: '0 10px 25px -5px rgba(79, 39, 233, 0.4)' }}
-                            >
-                                {loading ? 'Creating...' : cooldown > 0 ? `Wait ${cooldown}s...` : 'Sign Up Free'}
-                                {!loading && cooldown === 0 && <ArrowRight className="w-5 h-5" strokeWidth={3} />}
-                            </button>
-                        </form>
-
-                        <div className="mt-8 text-center border-t pt-6 border-gray-100">
-                            <p className="text-gray-500 text-sm font-medium">
-                                Already have an account? <Link to="/login" className="text-[#4F27E9] font-bold hover:underline">Log in</Link>
-                            </p>
-                        </div>
+                                <button
+                                    type="submit"
+                                    disabled={loading || cooldown > 0}
+                                    className="w-full h-10 md:h-12 flex items-center justify-center gap-2 rounded-xl transition-all font-bold text-white shadow-xl disabled:opacity-70 mt-1"
+                                    style={{ background: 'linear-gradient(180deg, #4F27E9 0%, #2A09B5 100%)', boxShadow: '0 10px 25px -5px rgba(79, 39, 233, 0.4)' }}
+                                >
+                                    {loading ? 'Creating...' : cooldown > 0 ? `Wait ${cooldown}s...` : 'Sign Up Free'}
+                                    {!loading && cooldown === 0 && <ArrowRight className="w-5 h-5" strokeWidth={3} />}
+                                </button>
+                            </form>
+    
+                            <div className="mt-4 text-center border-t pt-4 border-gray-100">
+                                <p className="text-gray-500 text-xs font-medium">
+                                    Already have an account? <Link to="/login" className="text-[#4F27E9] font-bold hover:underline">Log in</Link>
+                                </p>
+                            </div>
                     </div>
                 </div>
             </div>

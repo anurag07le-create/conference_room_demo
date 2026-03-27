@@ -12,9 +12,9 @@ import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import Settings from "./pages/Settings";
 import MeetingMinutes from "./pages/MeetingMinutes";
-import Deploy from "./pages/Deploy";
 import { DataProvider } from "./context/DataContext";
 import logo from "./assets/pucho_logo_login.png";
+import ScrollToTop from "./components/common/ScrollToTop";
 
 const LoadingScreen = () => (
     <div style={{
@@ -84,7 +84,6 @@ function App() {
                                 <Route path="users" element={<Users />} />
                                 <Route path="minutes" element={<MeetingMinutes />} />
                                 <Route path="notifications" element={<Notifications />} />
-                                <Route path="deploy" element={<Deploy />} />
                                 <Route path="settings" element={<Settings />} />
                             </Route>
 

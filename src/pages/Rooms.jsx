@@ -33,6 +33,12 @@ const Rooms = () => {
     const WEBHOOK_URL = import.meta.env.VITE_SMART_COMM_WEBHOOK_URL || "https://studio.pucho.ai/api/v1/webhooks/HHRERjvYyx4TblQt65NLD";
 
     useEffect(() => {
+        const handleOpenRoomEvent = () => handleOpenModal();
+        window.addEventListener('open-room-modal', handleOpenRoomEvent);
+        return () => window.removeEventListener('open-room-modal', handleOpenRoomEvent);
+    }, []);
+
+    useEffect(() => {
         const fetchBookings = async () => {
              const startOfWeek = new Date();
              startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
@@ -172,14 +178,15 @@ const Rooms = () => {
         }
     };
 
-    const handleDeactivate = async (room) => {
+    const handleToggleStatus = async (room, newStatus) => {
         setLoading(true);
         try {
             const targetId = room.room_id || room.id;
-            const { error } = await supabase.from('rooms').update({ status: 'INACTIVE' }).eq('room_id', targetId);
+            const { error } = await supabase.from('rooms').update({ status: newStatus }).eq('room_id', targetId);
             if (error) throw error;
-            showToast('Room deactivated', 'warning');
-            triggerWebhook('deactivate_room', { room_id: targetId, status: 'INACTIVE' });
+            
+            showToast(`Room ${newStatus === 'ACTIVE' ? 'activated' : 'deactivated'}`, newStatus === 'ACTIVE' ? 'success' : 'warning');
+            triggerWebhook('toggle_room_status', { room_id: targetId, status: newStatus });
             refreshRooms();
         } catch(error) {
             showToast('Error: ' + error.message, 'error');
@@ -231,8 +238,8 @@ const Rooms = () => {
                 )}
             </div>
 
-            {/* Table Section */}
-            <div className="bg-white rounded-[40px] border border-gray-100 shadow-premium overflow-hidden">
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-white rounded-[40px] border border-gray-100 shadow-premium overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse min-w-[700px]">
                         <thead>
@@ -263,13 +270,16 @@ const Rooms = () => {
                                                 <div className="flex flex-col">
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-black text-[15px] text-[#111834] group-hover/row:text-[#4F27E9] transition-colors">{name}</span>
-                                                        <div className="relative group/info">
-                                                            <Info size={14} className="text-gray-300 cursor-help hover:text-[#4F27E9] transition-colors" />
-                                                            <div className="absolute left-6 top-1/2 -translate-y-1/2 hidden group-hover/info:block z-50 w-64 bg-white/95 backdrop-blur-md p-6 rounded-[24px] shadow-2xl border border-gray-100 animate-slide-in">
+                                                        <button 
+                                                            className="relative group/info"
+                                                            onClick={() => showToast(`${name}: ${room.amenities || 'No amenities listed.'}`, 'info')}
+                                                        >
+                                                            <Info size={14} className="text-gray-300 hover:text-[#4F27E9] transition-colors" />
+                                                            <div className="absolute left-6 top-1/2 -translate-y-1/2 hidden md:group-hover/info:block z-50 w-64 bg-white/95 backdrop-blur-md p-6 rounded-[24px] shadow-2xl border border-gray-100 animate-slide-in pointer-events-none">
                                                                 <p className="text-[10px] font-black text-[#4F27E9] uppercase tracking-widest mb-2">Location: {loc}</p>
                                                                 <p className="text-xs text-gray-600 font-medium leading-relaxed">{room.amenities || 'Fully equipped for digital collaboration.'}</p>
                                                             </div>
-                                                        </div>
+                                                        </button>
                                                     </div>
                                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{loc}</span>
                                                 </div>
@@ -306,9 +316,9 @@ const Rooms = () => {
                                                     <button 
                                                         onClick={() => {
                                                             const ns = isActive ? 'INACTIVE' : 'ACTIVE';
-                                                            handleDeactivate({ room_id: id, id: id, status: ns === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' });
+                                                            handleToggleStatus(room, ns);
                                                         }} 
-                                                        className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all border border-transparent hover:shadow-sm ${isActive ? 'text-green-500 bg-green-50/50 hover:bg-green-50 hover:border-green-100' : 'text-gray-400 hover:bg-blue-50 hover:border-blue-100'}`}
+                                                        className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all border border-transparent hover:shadow-sm ${isActive ? 'text-green-500 bg-green-50/50 hover:bg-green-50 hover:border-green-100' : 'text-gray-400 bg-gray-50/50 hover:bg-indigo-50 hover:text-[#4F27E9] hover:border-indigo-100'}`}
                                                         title={isActive ? "Deactivate Room" : "Activate Room"}
                                                     >
                                                         <Power size={18} />
@@ -334,6 +344,86 @@ const Rooms = () => {
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+                {rooms.map((room) => {
+                    const id = room.room_id || room.id;
+                    const isActive = String(room.status).toUpperCase() === 'ACTIVE';
+                    const uti = getRoomUtilisation(id);
+                    return (
+                        <div key={id} className="bg-white p-5 rounded-[32px] border border-gray-100 shadow-sm space-y-4">
+                            <div className="flex justify-between items-start">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isActive ? 'bg-indigo-50 text-[#4F27E9]' : 'bg-gray-50 text-gray-400'} border border-gray-50`}>
+                                        <MapPin size={18} />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-black text-base text-[#111834] leading-tight">{room.room_name || room.name}</h3>
+                                            <button 
+                                                onClick={() => showToast(`${room.room_name || room.name}: ${room.amenities || 'No amenities.'}`, 'info')}
+                                                className="text-gray-300 hover:text-[#4F27E9]"
+                                            >
+                                                <Info size={14} />
+                                            </button>
+                                        </div>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">{room.floor_location || 'A1'}</p>
+                                    </div>
+                                </div>
+                                <Badge status={room.status} className="text-[9px] px-3 font-black tracking-widest uppercase">
+                                    {room.status}
+                                </Badge>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100 flex items-center justify-between">
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Capacity</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <Users size={12} className="text-gray-400" />
+                                        <span className="text-xs font-black text-gray-700">{room.capacity}</span>
+                                    </div>
+                                </div>
+                                <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                                    <div className="flex justify-between text-[9px] font-black uppercase tracking-tight mb-1">
+                                        <span className="text-gray-400">Weekly</span>
+                                        <span className="text-[#4F27E9]">{uti}%</span>
+                                    </div>
+                                    <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                        <div className="h-full bg-indigo-500" style={{ width: `${uti}%` }}></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {isAdmin && (
+                                <div className="flex items-center gap-2 pt-1">
+                                    <button 
+                                        onClick={() => handleOpenModal(room)}
+                                        className="flex-1 bg-indigo-50 text-[#4F27E9] h-11 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-wider border border-indigo-100"
+                                    >
+                                        <Edit2 size={14} /> Edit Room
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            const ns = isActive ? 'INACTIVE' : 'ACTIVE';
+                                            handleToggleStatus(room, ns);
+                                        }}
+                                        className={`w-11 h-11 flex items-center justify-center rounded-xl border transition-all ${isActive ? 'bg-green-50 text-green-500 border-green-100' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
+                                    >
+                                        <Power size={18} />
+                                    </button>
+                                    <button 
+                                        onClick={() => setDeleteConfirm(room)}
+                                        className="w-11 h-11 flex items-center justify-center bg-red-50 text-red-400 rounded-xl border border-red-100"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingRoom ? "Edit Room" : "Add New Room"}>

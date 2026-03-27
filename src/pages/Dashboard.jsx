@@ -23,21 +23,14 @@ const CalendarGrid = ({ isAdmin, rooms: roomsData, bookings: todayBookings, onQu
         const slotEnd = `${String(parseInt(time.split(':')[0]) + 1).padStart(2, '0')}:00`;
         
         const booking = todayBookings.find(b => {
-            if (b.room_id !== roomId && b.rooms?.id !== roomId) return false;
+            const bRoomId = String(b.room_id || b.roomId || '');
+            const targetRoomId = String(roomId || '');
+            if (bRoomId !== targetRoomId && String(b.rooms?.id || '') !== targetRoomId) return false;
             if (b.status !== 'CONFIRMED') return false;
             return b.start_time < slotEnd && b.end_time > slotStart;
         });
 
         if (booking) return 'red';
-
-        // Add 'Soon' state logic if the date is today
-        const todayStr = new Date().toISOString().split('T')[0];
-        if (selectedDate === todayStr) {
-            const now = new Date();
-            const currentHour = now.getHours();
-            const slotHour = parseInt(time.split(':')[0]);
-            if (slotHour === currentHour + 1) return 'orange';
-        }
 
         return 'green';
     };
@@ -221,7 +214,6 @@ const CalendarGrid = ({ isAdmin, rooms: roomsData, bookings: todayBookings, onQu
                 <div className="flex flex-wrap gap-3 md:gap-4 text-xs">
                     <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#F0FFF4] border border-[#C6F6D5]"></div> <span className="hidden sm:inline">Available</span></div>
                     <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#FFF5F5] border border-[#FED7D7]"></div> <span className="hidden sm:inline">Booked</span></div>
-                    <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#FFFAF0] border border-[#FEEBC8]"></div> <span className="hidden sm:inline">Soon</span></div>
                 </div>
             </div>
             <div className="p-4 md:p-6">
@@ -234,6 +226,7 @@ const CalendarGrid = ({ isAdmin, rooms: roomsData, bookings: todayBookings, onQu
 const Dashboard = () => {
     const { user, profile } = useAuth();
     const { bookings: globalBookings, rooms: globalRooms, loading: dataLoading, refreshAll, searchQuery } = useData();
+    const { showToast } = useToast();
     const [isBookingModalOpen, setIsBookingModalOpen] = React.useState(false);
     const [bookingInitialData, setBookingInitialData] = React.useState(null);
     const isAdmin = (user?.role?.toUpperCase() === 'ADMIN') || (profile?.role?.toUpperCase() === 'ADMIN');
@@ -260,6 +253,12 @@ const Dashboard = () => {
     const [gridBookings, setGridBookings] = React.useState([]);
 
     React.useEffect(() => {
+        const handleOpenBookingEvent = () => handleOpenBooking();
+        window.addEventListener('open-booking-modal', handleOpenBookingEvent);
+        return () => window.removeEventListener('open-booking-modal', handleOpenBookingEvent);
+    }, []);
+
+    React.useEffect(() => {
         if (!user || globalBookings.length === 0 || globalRooms.length === 0) return;
 
         setLoading(true);
@@ -269,26 +268,42 @@ const Dashboard = () => {
             yesterdayDate.setDate(yesterdayDate.getDate() - 1);
             const yesterday = yesterdayDate.toISOString().split('T')[0];
 
-            const mappedRooms = globalRooms;
+            const mappedRooms = globalRooms.map(room => {
+                const isBooked = globalBookings.some(b => 
+                    (b.room_id === (room.room_id || room.id) || b.room_name === room.room_name) && 
+                    b.booking_date === today && 
+                    b.status === 'CONFIRMED'
+                );
+                return { ...room, isBooked };
+            });
             
-            // 🚀 ROLE & SEARCH BASED DATA FILTERING
             const userEmail = user.email?.toLowerCase();
             const q = (searchQuery || '').toLowerCase();
-            
-            const bookingsData = globalBookings.filter(b => {
-                // 1. Role Check
-                const isOwner = b.user_email?.toLowerCase() === userEmail || 
-                               b.attendee_emails?.toLowerCase().includes(userEmail);
-                if (!isAdmin && !isOwner) return false;
 
-                // 2. Search Filter
-                if (!q) return true;
-                return (
-                    b.title?.toLowerCase().includes(q) ||
-                    b.user_email?.toLowerCase().includes(q) ||
-                    b.room_name?.toLowerCase().includes(q)
-                );
-            });
+            // 🚀 RECENT ACTIVITY (Sorted by newest date & time)
+            const bookingsData = globalBookings
+                .filter(b => {
+                    // 1. Role Check
+                    const isOwner = b.user_email?.toLowerCase() === userEmail || 
+                                   b.attendee_emails?.toLowerCase().includes(userEmail);
+                    if (!isAdmin && !isOwner) return false;
+
+                    // 2. Search Filter
+                    if (!q) return true;
+                    const rName = (b.room_name || b.room || '').toLowerCase();
+                    return (
+                        b.title?.toLowerCase().includes(q) ||
+                        b.user_email?.toLowerCase().includes(q) ||
+                        rName.includes(q)
+                    );
+                })
+                .sort((a, b) => {
+                    // Sort newest date first, then newest time
+                    const dateA = a.booking_date || '';
+                    const dateB = b.booking_date || '';
+                    if (dateA !== dateB) return dateB.localeCompare(dateA);
+                    return (b.start_time || '').localeCompare(a.start_time || '');
+                });
 
             // Separate Today vs Yesterday for KPI comparison
             const todayList = (bookingsData || []).filter(b => b.booking_date === today) || [];
@@ -404,6 +419,8 @@ const Dashboard = () => {
                     setSelectedGridDate={setSelectedGridDate}
                     activeTab={activeTab}
                     setActiveTab={setActiveTab}
+                    showToast={showToast}
+                    onOpenMoM={handleOpenMoM}
                 />
             ) : (
                 <UserDashboardView 
@@ -418,6 +435,7 @@ const Dashboard = () => {
                     onOpenMoM={handleOpenMoM}
                     loadingToday={loading}
                     stats={stats}
+                    showToast={showToast}
                 />
             )}
 
@@ -442,7 +460,7 @@ const Dashboard = () => {
 
 import StatCard from '../components/dashboard/StatCard';
 
-const AdminDashboardView = ({ isAdmin, onOpenBooking, stats, gridBookings, selectedGridDate, setSelectedGridDate, activeTab, setActiveTab }) => {
+const AdminDashboardView = ({ isAdmin, onOpenBooking, stats, gridBookings, selectedGridDate, setSelectedGridDate, activeTab, setActiveTab, showToast, onOpenMoM }) => {
     const getTrend = (current, previous) => {
         if (previous === undefined || previous === null || previous === 0) {
             if (current > 0) return { value: '100%', isUp: true };
@@ -460,46 +478,33 @@ const AdminDashboardView = ({ isAdmin, onOpenBooking, stats, gridBookings, selec
 
     return (
         <div className="space-y-6 md:space-y-8">
-            {/* Header with Tabs */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-4">
-                <div className="space-y-2">
-                    <h2 className="text-xl md:text-3xl font-black text-gray-900 tracking-tight">Live Monitoring Hub</h2>
-                    {/* Tabs Navigation */}
-                    <div className="flex bg-gray-100/50 p-1.5 rounded-2xl border border-gray-100 w-fit backdrop-blur-sm">
-                        <button 
-                            onClick={() => setActiveTab('Overview')}
-                            className={`px-6 py-2 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${activeTab === 'Overview' ? 'bg-white shadow-premium text-[#4F27E9]' : 'text-gray-400 hover:text-gray-600'}`}
-                        >
-                            Overview
-                        </button>
-                        <button 
-                            onClick={() => setActiveTab('Analytics')}
-                            className={`px-6 py-2 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${activeTab === 'Analytics' ? 'bg-white shadow-premium text-[#4F27E9]' : 'text-gray-400 hover:text-gray-600'}`}
-                        >
-                            Analytics
-                        </button>
-                    </div>
-                </div>
-                <div className="flex flex-wrap gap-2 md:gap-3">
-                    <Button 
-                        onClick={() => {}} 
-                        className="!bg-white !text-gray-900 border border-gray-100 shadow-sm hover:shadow-md h-12 px-6 rounded-2xl font-bold flex items-center gap-2 group transition-all"
+            {/* Compact Toggle Section */}
+            <div className="flex justify-between items-center gap-4">
+                <div className="flex bg-gray-100/80 p-1 rounded-xl border border-gray-100 w-fit">
+                    <button 
+                        onClick={() => setActiveTab('Overview')}
+                        className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'Overview' ? 'bg-white shadow-sm text-[#4F27E9]' : 'text-gray-400 hover:text-gray-600'}`}
                     >
-                        <Activity size={18} className="text-[#4F27E9] group-hover:animate-pulse" />
-                        System Health
-                    </Button>
+                        Overview
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('Analytics')}
+                        className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === 'Analytics' ? 'bg-white shadow-sm text-[#4F27E9]' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                        Analytics
+                    </button>
                 </div>
             </div>
             
             {/* KPI Cards - Responsive Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 <StatCard 
                     title="Total Bookings"
                     value={stats?.totalToday ?? '0'}
                     subvalue="Overall average today"
                     icon={Calendar}
                     variant="indigo"
-                    trend={bookingTrend?.isUp ? 'up' : 'down'}
+                    trend={bookingTrend?.isUp ? 'up' : 'none'}
                     trendValue={bookingTrend?.value}
                 />
                 <StatCard 
@@ -517,7 +522,7 @@ const AdminDashboardView = ({ isAdmin, onOpenBooking, stats, gridBookings, selec
                     subvalue="Declined requests"
                     icon={XCircle}
                     variant="orange"
-                    trend={cancellationTrend?.isUp ? 'up' : 'down'}
+                    trend={cancellationTrend?.isUp ? 'up' : 'none'}
                     trendValue={cancellationTrend?.value}
                 />
                 <StatCard 
@@ -553,9 +558,11 @@ const AdminDashboardView = ({ isAdmin, onOpenBooking, stats, gridBookings, selec
                                 View All
                             </NavLink>
                         </div>
-                        <div className="overflow-x-auto">
+
+                        {/* Desktop Table View */}
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="w-full text-left min-w-[600px]">
-                                <thead className="bg-gray-50 text-gray-500 text-[10px] uppercase font-black tracking-widest hidden md:table-header-group">
+                                <thead className="bg-gray-50 text-gray-500 text-[10px] uppercase font-black tracking-widest">
                                     <tr>
                                         <th className="px-6 py-4">User</th>
                                         <th className="px-6 py-4">Room</th>
@@ -567,51 +574,102 @@ const AdminDashboardView = ({ isAdmin, onOpenBooking, stats, gridBookings, selec
                                 <tbody className="divide-y divide-gray-50 text-sm">
                                     {(stats.allBookings || []).slice(0, 5).map((booking, i) => (
                                         <tr key={booking.id || i} className="hover:bg-gray-50/50 transition-colors">
-                                            <td className="px-4 md:px-6 py-4 flex items-center gap-3">
-                                                <img src={`https://api.dicebear.com/7.x/initials/svg?seed=${booking.id}`} className="w-8 h-8 rounded-full bg-gray-100" />
+                                            <td className="px-6 py-4 flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-[#4F27E9] font-bold text-xs">
+                                                    {booking.user_name?.substring(0, 2).toUpperCase() || '??'}
+                                                </div>
                                                 <div className="flex flex-col min-w-0">
-                                                    <span className="font-bold text-gray-900 truncate max-w-[120px] md:max-w-none hover:text-[#4F27E9] cursor-default transition-colors">{booking.title || 'Untitled Meeting'}</span>
+                                                    <span className="font-bold text-gray-900 truncate max-w-[200px] hover:text-[#4F27E9] cursor-default transition-colors">{booking.title || 'Untitled Meeting'}</span>
                                                     {booking.mom_notes && (
                                                         <span className="text-[9px] font-black text-purple-600 uppercase tracking-tighter opacity-80 animate-pulse">AI Summary Ready</span>
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-4 md:px-6 py-4 text-gray-600 font-medium text-xs md:text-sm">{booking.room_name}</td>
-                                            <td className="px-4 md:px-6 py-4 text-gray-500 font-medium text-xs">
-                                                {booking.booking_date}<br className="md:hidden" />
-                                                <span className="text-gray-400">{booking.start_time?.substring(0, 5)}</span>
-                                            </td>
-                                            <td className="px-4 md:px-6 py-4">
-                                                <Badge status={booking.status?.toLowerCase()}>{booking.status}</Badge>
-                                            </td>
-                                            <td className="px-4 md:px-6 py-4 text-center">
-                                                <div className="flex items-center justify-center gap-1">
-                                                    {booking.mom_notes && (
-                                                        <button 
-                                                            className="p-1.5 hover:bg-purple-50 rounded-lg text-purple-400 hover:text-purple-600 transition-all" 
-                                                            title="View Summary"
-                                                            onClick={() => {
-                                                                // Future-proof: Trigger MoM read-only modal here
-                                                                showToast('AI Summary for: ' + booking.title, 'info');
-                                                            }}
-                                                        >
-                                                            <FileText size={16} />
-                                                        </button>
-                                                    )}
-                                                    <button className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-[#4F27E9]" title="Details">
-                                                        <Info size={16} />
-                                                    </button>
-                                                </div>
-                                            </td>
+                                                    <td className="px-6 py-4 text-gray-600 font-medium text-sm">{booking.room_name || booking.room || 'N/A'}</td>
+                                                    <td className="px-6 py-4 text-gray-500 font-medium text-xs">
+                                                        {booking.booking_date}<br />
+                                                        <span className="text-gray-400">{booking.start_time?.substring(0, 5)}</span>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <Badge status={booking.status?.toLowerCase()}>{booking.status}</Badge>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <div className="flex items-center justify-center gap-1">
+                                                            {booking.mom_notes && (
+                                                                <button 
+                                                                    className="p-1.5 hover:bg-purple-50 rounded-lg text-purple-400 hover:text-purple-600 transition-all" 
+                                                                    title="View Summary"
+                                                                    onClick={() => onOpenMoM(booking)}
+                                                                >
+                                                                    <Bot size={16} />
+                                                                </button>
+                                                            )}
+                                                            <button 
+                                                                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-[#4F27E9]" 
+                                                                title="Details"
+                                                                onClick={() => showToast(`${booking.title}: ${booking.room_name || booking.room || 'N/A'} on ${booking.booking_date} @ ${booking.start_time?.substring(0, 5)}`, 'info')}
+                                                            >
+                                                                <Info size={16} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
                                         </tr>
                                     ))}
                                     {(!stats.allBookings || stats.allBookings.length === 0) && (
                                         <tr>
-                                            <td colSpan="5" className="px-6 py-10 text-center text-gray-400 font-medium">No recent activity found</td>
+                                            <td colSpan="5" className="px-6 py-10 text-center text-gray-400 font-medium italic">No recent activity detected</td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
+                        </div>
+
+                        {/* Mobile Card View */}
+                        <div className="md:hidden divide-y divide-gray-50">
+                            {(stats.allBookings || []).slice(0, 5).map((booking, i) => (
+                                <div key={booking.id || i} className="p-4 space-y-3">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-[#4F27E9] font-black text-sm shrink-0">
+                                                {booking.user_name?.substring(0, 2).toUpperCase() || '??'}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h4 className="font-bold text-gray-900 text-sm truncate">{booking.title || 'Untitled Sync'}</h4>
+                                                <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">{booking.room_name || booking.room || 'N/A'}</p>
+                                            </div>
+                                        </div>
+                                        <Badge status={booking.status?.toLowerCase()}>{booking.status}</Badge>
+                                    </div>
+                                    
+                                    <div className="flex justify-between items-center bg-gray-50/50 p-3 rounded-2xl">
+                                        <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500">
+                                            <Clock size={12} className="text-[#4F27E9]" />
+                                            {booking.booking_date} @ {booking.start_time?.substring(0, 5)}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            {booking.mom_notes && (
+                                                <button 
+                                                    onClick={() => onOpenMoM(booking)}
+                                                    className="p-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-600 hover:text-white transition-all"
+                                                >
+                                                    <Bot size={14} />
+                                                </button>
+                                            )}
+                                            <button 
+                                                onClick={() => showToast(`${booking.title}: ${booking.room_name || booking.room || 'N/A'} on ${booking.booking_date} @ ${booking.start_time?.substring(0, 5)}`, 'info')}
+                                                className="p-2 bg-white text-gray-400 border border-gray-100 rounded-lg shadow-sm"
+                                            >
+                                                <Info size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {(!stats.allBookings || stats.allBookings.length === 0) && (
+                                <div className="p-10 text-center text-gray-400 text-sm font-medium italic">
+                                    No activity recorded
+                                </div>
+                            )}
                         </div>
                     </div>
                 </>
@@ -692,33 +750,16 @@ const AdminDashboardView = ({ isAdmin, onOpenBooking, stats, gridBookings, selec
     );
 };
 
-const UserDashboardView = ({ isAdmin, user, profile, onOpenBooking, gridBookings, todayBookings, onOpenMoM, loadingToday, stats, selectedGridDate, setSelectedGridDate }) => {
+const UserDashboardView = ({ isAdmin, user, profile, onOpenBooking, gridBookings, todayBookings, onOpenMoM, loadingToday, stats, selectedGridDate, setSelectedGridDate, showToast }) => {
     const { notifications } = useData();
     const unreadCount = notifications?.filter(n => !n.is_read).length || 0;
 
     return (
         <div className="space-y-8 pb-12">
-            {/* Header Section */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div>
-                    <h2 className="text-[32px] font-black text-gray-900 tracking-tight leading-none mb-2">
-                        Good Morning, {user?.full_name?.split(' ')?.[0] || 'Member'}!
-                    </h2>
-                    <p className="text-gray-500 font-medium">Here's what's happening at Pucho OS today.</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <Button 
-                        onClick={() => onOpenBooking()}
-                        className="!bg-[#4F27E9] !text-white hover:!bg-[#3D1DB3] h-12 px-8 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-2"
-                    >
-                        <Plus size={18} />
-                        Quick Book
-                    </Button>
-                </div>
-            </div>
+            {/* Header Section Removed (Moved to Header.jsx) */}
 
             {/* Top Metrics Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 <StatCard 
                     title="My Meetings"
                     value={todayBookings.length}
@@ -754,31 +795,7 @@ const UserDashboardView = ({ isAdmin, user, profile, onOpenBooking, gridBookings
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Main Content (2 cols) */}
                 <div className="lg:col-span-2 space-y-8">
-                    {/* Welcome Banner */}
-                    <div className="gradient-indigo p-10 rounded-[48px] text-white shadow-2xl relative overflow-hidden group">
-                        <div className="relative z-10">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[10px] font-black uppercase tracking-widest mb-6 backdrop-blur-md">
-                                <ShieldAlert size={14} className="text-white" />
-                                Premium Member Plan
-                            </div>
-                            <h2 className="text-2xl md:text-3xl font-black mb-4 tracking-tight max-w-md">Schedule your next big idea today.</h2>
-                            <p className="text-white/70 mb-10 font-bold text-lg leading-relaxed max-w-sm">Enjoy automated meeting minutes and real-time room availability.</p>
-                            
-                            <div className="flex flex-wrap items-center gap-4">
-                                <Button 
-                                    onClick={() => onOpenBooking()}
-                                    className="!bg-white !text-[#4F27E9] hover:!bg-indigo-50 border-none px-8 h-12 font-black rounded-2xl shadow-xl transition-all"
-                                >
-                                    Book Now
-                                </Button>
-                                <button className="px-6 h-12 font-black rounded-2xl text-white/80 hover:text-white hover:bg-white/10 transition-all text-sm uppercase tracking-widest">
-                                    View Guide
-                                </button>
-                            </div>
-                        </div>
-                        <Bot className="absolute -bottom-12 -right-12 w-64 h-64 text-white/5 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-700 opacity-30" />
-                        <div className="absolute top-12 right-12 w-48 h-48 bg-white/10 rounded-full blur-[80px]"></div>
-                    </div>
+                    <div className="hidden"></div>
                     <CalendarGrid 
                         isAdmin={isAdmin} 
                         rooms={stats.rooms} 
@@ -812,7 +829,10 @@ const UserDashboardView = ({ isAdmin, user, profile, onOpenBooking, gridBookings
                                     );
                                 }
                                 
-                                const myBookings = (todayBookings || []).filter(b => b.user_id === user?.id);
+                                const myBookings = (todayBookings || []).filter(b => 
+                                    b.user_email?.toLowerCase() === user?.email?.toLowerCase() || 
+                                    b.user_id === user?.id
+                                );
                                 if (myBookings.length === 0) {
                                     return (
                                         <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
@@ -849,42 +869,7 @@ const UserDashboardView = ({ isAdmin, user, profile, onOpenBooking, gridBookings
                         </div>
                     </div>
 
-                    {/* AI Productivity Widget */}
-                    <div className="bg-[#111834] rounded-[48px] p-8 text-white shadow-2xl relative overflow-hidden group">
-                        <div className="relative z-10">
-                            <h3 className="text-lg font-black mb-6 flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center">
-                                    <Bot size={20} className="text-indigo-400" />
-                                </div>
-                                AI Analytics
-                            </h3>
-                            <div className="space-y-6">
-                                <div>
-                                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">
-                                        <span>Summary Rate</span>
-                                        <span className="text-white">88%</span>
-                                    </div>
-                                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                        <div className="h-full bg-indigo-500 rounded-full shadow-[0_0_10px_rgba(79,39,233,0.5)]" style={{ width: '88%' }}></div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-between p-4 rounded-3xl bg-white/5 border border-white/10">
-                                    <div className="flex items-center gap-3">
-                                        <Activity size={18} className="text-green-400" />
-                                        <span className="text-xs font-bold">System Load</span>
-                                    </div>
-                                    <span className="text-[10px] font-black text-green-400 uppercase tracking-widest">Normal</span>
-                                </div>
-                                <NavLink 
-                                    to="/user/settings" 
-                                    className="w-full h-12 bg-white/10 hover:bg-white text-white hover:text-[#111834] rounded-2xl flex items-center justify-center text-[10px] font-black uppercase tracking-[0.2em] transition-all"
-                                >
-                                    Optimization
-                                </NavLink>
-                            </div>
-                        </div>
-                        <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-indigo-600/10 rounded-full blur-3xl opacity-50"></div>
-                    </div>
+                    <div className="hidden"></div>
                 </div>
             </div>
         </div>

@@ -17,7 +17,14 @@ export const DataProvider = ({ children }) => {
     const refreshRooms = useCallback(async () => {
         try {
             const { data, error } = await supabase.from('rooms').select('*').order('created_at', { ascending: false });
-            if (!error) setRooms(data || []);
+            if (!error) {
+                const mapped = (data || []).map(r => ({
+                    ...r,
+                    id: r.id || r.room_id,
+                    room_name: r.room_name || r.name
+                }));
+                setRooms(mapped);
+            }
         } catch (e) { console.error(e); }
     }, []);
 
@@ -28,9 +35,10 @@ export const DataProvider = ({ children }) => {
                 const mapped = (data || []).map(b => ({
                     ...b,
                     id: b.booking_id || b.id,
+                    room_id: b.room_id || b.rooms?.id,
                     startTime: b.start_time ? b.start_time.substring(0,5) : '--:--',
                     endTime: b.end_time ? b.end_time.substring(0,5) : '--:--',
-                    room: b.room_name || 'Room',
+                    room: b.room_name || b.rooms?.room_name || 'Room',
                     date: b.booking_date
                 }));
                 setBookings(mapped);
@@ -68,7 +76,11 @@ export const DataProvider = ({ children }) => {
                 if (currentEmail && msg.includes(currentEmail)) return true;
                 return false;
             });
-            setNotifications(filtered);
+            const mapped = filtered.map(n => ({
+                ...n,
+                id: n.notification_id || n.id || Math.random().toString(36).substr(2, 9)
+            }));
+            setNotifications(mapped);
         } catch (e) { console.log(e); setNotifications([]); }
     }, [user]);
 

@@ -293,7 +293,7 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-gray-900">
+                <div className="space-y-4">
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</label>
                         <input 
@@ -304,25 +304,27 @@ const BookingModal = ({ isOpen, onClose, initialData = null, onSuccess }) => {
                             className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold transition-all" 
                         />
                     </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Start Time</label>
-                        <input 
-                            required
-                            type="time" 
-                            value={formData.startTime}
-                            onChange={(e) => setFormData({...formData, startTime: e.target.value})}
-                            className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold transition-all" 
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">End Time</label>
-                        <input 
-                            required
-                            type="time" 
-                            value={formData.endTime}
-                            onChange={(e) => setFormData({...formData, endTime: e.target.value})}
-                            className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold transition-all" 
-                        />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2 text-gray-900">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Start Time</label>
+                            <input 
+                                required
+                                type="time" 
+                                value={formData.startTime}
+                                onChange={(e) => setFormData({...formData, startTime: e.target.value})}
+                                className="w-full h-12 px-3 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold transition-all" 
+                            />
+                        </div>
+                        <div className="space-y-2 text-gray-900">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">End Time</label>
+                            <input 
+                                required
+                                type="time" 
+                                value={formData.endTime}
+                                onChange={(e) => setFormData({...formData, endTime: e.target.value})}
+                                className="w-full h-12 px-3 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#4F27E9]/20 font-bold transition-all" 
+                            />
+                        </div>
                     </div>
                 </div>
 

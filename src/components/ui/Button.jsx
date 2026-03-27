@@ -21,7 +21,7 @@ const Button = ({ children, onClick, className = '', disabled = false, icon: Ico
             className={`
                 relative h-12 px-8 flex items-center justify-center gap-3 rounded-2xl
                 transition-all duration-300 ease-out
-                font-['Outfit'] font-black text-[12px] uppercase tracking-widest
+                font-['Inter'] font-bold text-[12px] uppercase tracking-widest
                 overflow-hidden select-none
                 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-transparent disabled:cursor-not-allowed disabled:scale-100
                 hover:scale-[1.02] active:scale-[0.98]

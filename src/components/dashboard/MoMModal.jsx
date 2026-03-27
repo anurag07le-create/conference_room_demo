@@ -46,10 +46,9 @@ const MoMModal = ({ isOpen, onClose, booking, onSuccess }) => {
             const { error: dbError } = await supabase
                 .from('bookings')
                 .update({ 
-                    mom_notes: notes,
-                    status: 'COMPLETED' // Mark as completed when MoM is added
+                    mom_notes: notes
                 })
-                .eq('id', booking.id || booking.booking_id);
+                .eq('booking_id', booking.booking_id || booking.id);
 
             if (dbError) throw dbError;
 

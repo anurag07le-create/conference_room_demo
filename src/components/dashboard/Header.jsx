@@ -1,86 +1,101 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import SearchIcon from '../../assets/icons/search.svg';
-import BellIcon from '../../assets/icons/bell.png';
+import { Bell, Plus, LogOut, Menu } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { useToast } from '../../context/ToastContext';
 
 const Header = ({ onMenuClick }) => {
-    const { user } = useAuth();
-    const { notifications, searchQuery, setSearchQuery } = useData();
-    const [isFocused, setIsFocused] = useState(false);
-    
+    const { user, profile, logout } = useAuth();
+    const { notifications } = useData();
+    const navigate = useNavigate();
+    const [logoutLoading, setLogoutLoading] = useState(false);
+    const isAdmin = (user?.role?.toUpperCase() === 'ADMIN') || (profile?.role?.toUpperCase() === 'ADMIN');
+
+    const handleLogout = async () => {
+        if (logoutLoading) return;
+        setLogoutLoading(true);
+        try {
+            await logout();
+            navigate('/login');
+        } catch (error) {
+            console.error("[Header] Logout error:", error);
+            navigate('/login');
+        } finally {
+            setLogoutLoading(false);
+        }
+    };
+
     // Derived state for performance and real-time accuracy
     const notifCount = notifications.filter(n => !n.is_read).length;
 
     return (
-        <header className="sticky top-0 z-30 w-full h-20 bg-white/60 backdrop-blur-2xl border-b border-white/40 flex items-center justify-between px-8 transition-all">
-            {/* Search (Left) */}
-            <div className="flex items-center flex-1 max-w-lg">
-                <div
-                    className={`
-                        group flex items-center gap-3 bg-gray-50/50 rounded-2xl border transition-all duration-300 w-full overflow-hidden
-                        ${isFocused 
-                            ? 'h-12 border-[#4F27E9] bg-white shadow-lg shadow-indigo-50 ring-4 ring-indigo-50/50' 
-                            : 'h-12 border-gray-100/50 hover:border-indigo-100 hover:bg-white hover:shadow-sm'
-                        }
-                    `}
+        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-gray-100 px-4 md:px-8 flex items-center justify-between sticky top-0 z-[150] w-full gap-2">
+            <div className="flex items-center min-w-0 flex-1">
+                {/* Mobile Menu Button */}
+                <button 
+                    onClick={onMenuClick}
+                    className="lg:hidden p-2 -ml-1 mr-2 hover:bg-gray-100 rounded-xl text-gray-500 shrink-0"
                 >
-                    <div className="flex items-center justify-center w-10 h-10 ml-1 rounded-xl group-hover:bg-indigo-50 transition-colors">
-                        <img src={SearchIcon} alt="Search" className="w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                    <input
-                        type="text"
-                        placeholder="Search for meetings, rooms, or members..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="flex-1 bg-transparent border-none outline-none text-[#111834] placeholder:text-gray-400 text-sm font-bold font-['Outfit']"
-                        onFocus={() => setIsFocused(true)}
-                        onBlur={() => setIsFocused(false)}
-                    />
-                    {searchQuery && (
-                        <button 
-                            onClick={() => setSearchQuery('')}
-                            className="p-2 mr-1 text-gray-300 hover:text-red-500 transition-colors"
-                        >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    )}
+                    <Menu size={24} />
+                </button>
+
+                {/* Greeting & Subtext */}
+                <div className="flex flex-col min-w-0">
+                    <h2 className="text-base md:text-xl font-black text-[#111834] tracking-tight truncate">
+                        Good Morning, <span className="text-[#4F27E9]">{user?.full_name?.split(' ')[0] || 'Member'}!</span>
+                    </h2>
+                    <p className="hidden md:block text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        Here's what's happening at Conference Room today.
+                    </p>
                 </div>
             </div>
 
             {/* Actions (Right) */}
-            <div className="flex items-center gap-6">
-                {/* Notification Cluster */}
-                <Link 
-                    to={user?.role?.toUpperCase() === 'ADMIN' ? "/admin/notifications" : "/user/notifications"} 
-                    className="relative w-12 h-12 flex items-center justify-center bg-gray-50/50 hover:bg-white rounded-2xl border border-transparent hover:border-gray-100 hover:shadow-sm transition-all group"
+            <div className="flex items-center gap-2 md:gap-4 shrink-0">
+                <button
+                    onClick={() => {
+                        if (isAdmin) {
+                            navigate('/admin/rooms');
+                            // Delay slightly to ensure page transition if needed
+                            setTimeout(() => {
+                                window.dispatchEvent(new CustomEvent('open-room-modal'));
+                            }, 100);
+                        } else {
+                            window.dispatchEvent(new CustomEvent('open-booking-modal'));
+                        }
+                    }}
+                    className="hidden sm:flex bg-[#4F27E9] text-white hover:bg-[#3D1DB3] h-10 px-6 items-center gap-2 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all hover:scale-105 active:scale-95"
                 >
-                    <img src={BellIcon} alt="Notifications" className="w-5 h-5 opacity-40 group-hover:opacity-100 transition-opacity" />
+                    <Plus size={16} />
+                    <span className="hidden lg:inline">{isAdmin ? 'Add Room' : 'Quick Book'}</span>
+                </button>
+
+                <div className="relative">
+                    <button
+                        onClick={() => navigate('/user/notifications')}
+                        className="w-10 h-10 flex items-center justify-center bg-gray-50 text-gray-400 hover:text-[#4F27E9] rounded-xl border border-gray-100 transition-all hover:bg-white hover:shadow-sm"
+                    >
+                        <Bell size={20} />
+                    </button>
                     {notifCount > 0 && (
-                        <span className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-[#4F27E9] text-white text-[10px] flex items-center justify-center rounded-full font-black px-1.5 border-2 border-white shadow-sm animate-bounce">
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#4F27E9] text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-white shadow-sm">
                             {notifCount > 9 ? '9+' : notifCount}
                         </span>
                     )}
-                </Link>
+                </div>
 
-                <div className="h-8 w-[1.5px] bg-gray-100 rounded-full"></div>
-                
-                <div className="flex items-center gap-3">
-                    <div className="flex flex-col items-end hidden sm:flex">
-                        <span className="text-[13px] font-black text-[#111834] leading-none mb-0.5">{user?.full_name || 'Member'}</span>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{user?.role || 'User'}</span>
-                    </div>
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center overflow-hidden shadow-sm">
-                        <img 
-                            src={`https://api.dicebear.com/7.x/initials/svg?seed=${user?.full_name || 'Member'}`} 
-                            alt="Avatar" 
-                            className="w-10 h-10 rounded-xl"
-                        />
-                    </div>
+                <div className="flex items-center gap-2 md:gap-3 ml-1 md:ml-2 pl-2 md:pl-4 border-l border-gray-100">
+                    <button
+                        onClick={handleLogout}
+                        disabled={logoutLoading}
+                        className="w-10 h-10 flex items-center justify-center bg-red-50 text-red-500 hover:bg-red-100 rounded-xl border border-red-100 transition-all"
+                        title="Logout"
+                    >
+                        <LogOut size={20} />
+                    </button>
                 </div>
             </div>
         </header>

@@ -263,30 +263,31 @@ const Users = () => {
 
     return (
         <div className="space-y-6 animate-fade-in">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm text-gray-900">
-                <div>
-                    <h1 className="text-2xl font-bold">User Management</h1>
-                    <p className="text-gray-500 text-sm">Manage user accounts, roles, and access permissions.</p>
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm text-gray-900">
+                <div className="min-w-0">
+                    <h1 className="text-xl sm:text-2xl font-bold truncate">User Management</h1>
+                    <p className="text-gray-500 text-xs sm:text-sm truncate">Manage user accounts, roles, and access permissions.</p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-2 sm:gap-3 w-full lg:w-auto">
                     <button
                         onClick={handleExportCSV}
-                        className="bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:text-gray-900 flex items-center gap-2 h-11 px-5 text-sm font-semibold rounded-full shadow-sm transition-all"
+                        className="flex-1 lg:flex-none bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:text-gray-900 flex items-center justify-center gap-2 h-10 px-4 text-xs font-semibold rounded-full shadow-sm transition-all"
                     >
-                        <Download size={16} />
-                        Export CSV
+                        <Download size={14} />
+                        Export
                     </button>
                     <button
                         onClick={() => setIsInviteModalOpen(true)}
-                        className="bg-[#4F27E9] text-white hover:bg-[#3D1DB3] flex items-center gap-2 h-11 px-5 text-sm font-semibold rounded-full shadow-sm transition-all"
+                        className="flex-1 lg:flex-none bg-[#4F27E9] text-white hover:bg-[#3D1DB3] flex items-center justify-center gap-2 h-10 px-4 text-xs font-semibold rounded-full shadow-sm transition-all"
                     >
-                        <UserPlus size={16} />
-                        Invite User
+                        <UserPlus size={14} />
+                        Invite
                     </button>
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto text-gray-900">
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden text-gray-900">
                 <table className="w-full text-left min-w-[800px]">
                     <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
                         <tr>
@@ -372,6 +373,63 @@ const Users = () => {
                         )}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+                {users.map((u) => (
+                    <div key={u.user_id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                        <div className="flex justify-between items-start gap-3">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full overflow-hidden border border-blue-100 flex-shrink-0">
+                                    <img src={`https://api.dicebear.com/7.x/initials/svg?seed=${u.full_name}`} className="w-full h-full" alt="" />
+                                </div>
+                                <div className="min-w-0">
+                                    <h3 className="font-bold text-sm text-gray-900 truncate">{u.full_name}</h3>
+                                    <p className="text-[10px] text-gray-400 font-medium truncate">{u.email}</p>
+                                </div>
+                            </div>
+                            <div className={`shrink-0 px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wider ${u.role === 'ADMIN' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}>
+                                {u.role}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Department</p>
+                                <p className="text-xs font-bold text-gray-700 truncate">{u.department || 'N/A'}</p>
+                            </div>
+                            <div className="bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</p>
+                                <Badge status={(u.status || 'ACTIVE').toLowerCase()} className="text-[9px] px-2 py-0">
+                                    {u.status || 'ACTIVE'}
+                                </Badge>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1">
+                            <button
+                                onClick={() => handleToggleStatus(u)}
+                                className={`flex-1 h-10 rounded-xl flex items-center justify-center gap-2 font-bold text-[11px] border transition-all ${u.status === 'INACTIVE' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
+                            >
+                                <Power size={14} />
+                                {u.status === 'INACTIVE' ? 'Activate' : 'Deactivate'}
+                            </button>
+                            <button
+                                onClick={() => handleOpenModal(u)}
+                                className="w-10 h-10 flex items-center justify-center bg-gray-50 text-gray-400 border border-gray-100 rounded-xl"
+                            >
+                                <Edit2 size={16} />
+                            </button>
+                            <button
+                                onClick={() => setDeleteConfirm(u)}
+                                className="w-10 h-10 flex items-center justify-center bg-red-50 text-red-400 border border-red-100 rounded-xl"
+                            >
+                                <XCircle size={16} />
+                            </button>
+                        </div>
+                    </div>
+                ))}
             </div>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Edit User Role & Dept">

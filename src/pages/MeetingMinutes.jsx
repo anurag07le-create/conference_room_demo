@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Calendar, MapPin, Search, ChevronRight, MessageSquare, Info } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
@@ -8,8 +8,15 @@ const MeetingMinutes = () => {
     const { bookings, loading: dataLoading } = useData();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedMinutes, setSelectedMinutes] = useState(null);
+    const detailsRef = useRef(null);
 
     const isAdmin = user?.role?.toUpperCase() === 'ADMIN';
+
+    useEffect(() => {
+        if (selectedMinutes && window.innerWidth < 1024 && detailsRef.current) {
+            detailsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, [selectedMinutes]);
 
     if (dataLoading && !bookings.length) {
         return (
@@ -21,7 +28,6 @@ const MeetingMinutes = () => {
 
     // Filter bookings that have MoM notes AND user is authorized to see them
     const minutesList = (bookings || []).filter(b => {
-        if (!b.mom_notes) return false;
         if (isAdmin) return true;
         
         const userEmail = user?.email?.toLowerCase();
@@ -65,7 +71,7 @@ const MeetingMinutes = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[500px]">
                 {/* List Section */}
-                <div className="lg:col-span-4 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
+                <div className="lg:col-span-4 space-y-3 overflow-y-auto pr-2 custom-scrollbar lg:h-[calc(100vh-280px)]">
                     {dataLoading ? (
                         <div className="bg-white p-10 rounded-3xl border border-gray-100 shadow-sm flex justify-center">
                             <div className="w-8 h-8 border-4 border-[#4F27E9]/20 border-t-[#4F27E9] rounded-full animate-spin"></div>
@@ -83,7 +89,7 @@ const MeetingMinutes = () => {
                                 <div className="flex-1 min-w-0">
                                     <h3 className={`font-bold text-sm truncate ${selectedMinutes?.id === m.id ? 'text-white' : 'text-gray-900'}`}>{m.title}</h3>
                                     <p className={`text-[10px] mt-1 font-medium ${selectedMinutes?.id === m.id ? 'text-white/70' : 'text-gray-400'}`}>
-                                        {m.date} • {m.room}
+                                        {m.date} • {m.room_name || m.room || 'N/A'}
                                     </p>
                                 </div>
                                 <ChevronRight size={16} className={`transition-transform ${selectedMinutes?.id === m.id ? 'rotate-90' : 'group-hover:translate-x-1'}`} />
@@ -99,9 +105,9 @@ const MeetingMinutes = () => {
                 </div>
 
                 {/* Detail Content Section */}
-                <div className="lg:col-span-8">
+                <div className="lg:col-span-8" ref={detailsRef}>
                     {selectedMinutes ? (
-                        <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm h-full flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-4">
+                        <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm h-full flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-6 duration-500">
                             <div className="p-8 border-b border-gray-50 space-y-4 bg-gray-50/20">
                                 <div className="flex items-center gap-2">
                                     <span className="inline-flex px-3 py-1 bg-green-50 text-green-600 text-[9px] font-black uppercase tracking-widest rounded-full border border-green-100">Verified by AI</span>
@@ -118,7 +124,7 @@ const MeetingMinutes = () => {
                                 </div>
                             </div>
                             
-                            <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
+                            <div className="p-8 overflow-y-auto custom-scrollbar flex-1 lg:max-h-[calc(100vh-450px)]">
                                 <div className="max-w-none">
                                     <div className="flex items-center gap-3 mb-6">
                                         <div className="w-1 h-6 bg-[#4F27E9] rounded-full"></div>
@@ -126,13 +132,15 @@ const MeetingMinutes = () => {
                                     </div>
                                     
                                     <div 
-                                        className="text-gray-700 leading-relaxed space-y-4 font-medium text-sm p-6 bg-gray-50/50 rounded-3xl border border-gray-50"
-                                        dangerouslySetInnerHTML={{ __html: selectedMinutes.mom_notes }}
+                                        className={`text-gray-700 leading-relaxed space-y-4 font-medium text-sm p-6 bg-gray-50/50 rounded-3xl border border-gray-50 ${!selectedMinutes.mom_notes ? 'animate-pulse' : ''}`}
+                                        dangerouslySetInnerHTML={{ __html: selectedMinutes.mom_notes || '<p class="text-gray-400 italic">The AI summary for this meeting is currently being generated. Check back in a few minutes...</p>' }}
                                     ></div>
                                 </div>
                                 
                                 <div className="mt-8 flex items-center gap-4 p-4 bg-indigo-50/30 rounded-3xl border border-indigo-50">
-                                    <Info size={16} className="text-[#4F27E9] shrink-0" />
+                                    <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-[#4F27E9] shrink-0">
+                                        <Info size={20} />
+                                    </div>
                                     <p className="text-[11px] font-bold text-indigo-700 leading-tight">
                                         This summary was automatically sent to all {selectedMinutes.attendees || 'participants'} via email.
                                     </p>

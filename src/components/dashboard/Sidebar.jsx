@@ -17,7 +17,7 @@ import ToolsIcon from '../../assets/icons/tools.svg';
 import MarketplaceIcon from '../../assets/icons/marketplace.svg';
 import LogoutIcon from '../../assets/icons/logout.svg';
 import BellIcon from '../../assets/icons/search.svg';
-import { Settings as SettingsIcon, X, Mail, Building, Shield, Calendar, User, Rocket } from 'lucide-react';
+import { Settings as SettingsIcon, X, Mail, Building, Shield, Calendar, User, Rocket, LayoutDashboard, LogOut } from 'lucide-react';
 
 const Sidebar = ({ onClose }) => {
     const navigate = useNavigate();
@@ -51,13 +51,12 @@ const Sidebar = ({ onClose }) => {
     const basePath = isAdmin ? '/admin' : '/user';
 
     const menuItems = [
-        { name: 'Dashboard', icon: HomeIcon, path: `${basePath}` },
+        { name: 'Dashboard', icon: LayoutDashboard, path: `${basePath}`, isLucide: true },
         { name: 'Rooms', icon: AgentsIcon, path: `${basePath}/rooms`, adminOnly: true },
         { name: 'Bookings', icon: FlowsIcon, path: `${basePath}/bookings` },
         { name: 'Meeting Minutes', icon: KnowledgeIcon, path: `${basePath}/minutes` },
         { name: 'Users', icon: ChatIcon, path: `${basePath}/users`, adminOnly: true },
         { name: 'Notifications', icon: BellIcon, path: `${basePath}/notifications` },
-        { name: 'Deployments', icon: Rocket, path: `${basePath}/deploy`, adminOnly: true, isLucide: true },
         { name: 'Settings', icon: SettingsIcon, path: `${basePath}/settings`, isLucide: true },
     ];
 
@@ -75,13 +74,13 @@ const Sidebar = ({ onClose }) => {
                 </div>
 
                 {/* Desktop Logo Section */}
-                <div className="hidden lg:flex px-8 h-[88px] items-center">
-                    <img src={logo} alt="Conference Room Booking" className="h-[38px] w-auto" />
+                <div className="hidden lg:flex px-8 h-20 items-center border-b border-gray-50">
+                    <img src={logo} alt="Conference Room Booking" className="h-8 w-auto" />
                 </div>
 
                 {/* Navigation */}
-                <div className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto custom-scrollbar">
-                    <p className="px-4 text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Main Menu</p>
+                <div className="flex-1 px-4 py-4 space-y-1.5 overflow-y-auto custom-scrollbar">
+                    <p className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Main Menu</p>
                     <nav className="space-y-1">
                         {filteredMenuItems.map((item) => (
                             <NavLink
@@ -134,14 +133,6 @@ const Sidebar = ({ onClose }) => {
                         </div>
                     </div>
 
-                    <button
-                        onClick={handleLogout}
-                        disabled={logoutLoading}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-[13px] font-bold text-red-600 bg-red-50/30 hover:bg-red-50 transition-all duration-200 disabled:opacity-50"
-                    >
-                        <img src={LogoutIcon} alt="Logout" className="w-4 h-4 object-contain opacity-80" />
-                        <span>{logoutLoading ? 'Signing out...' : 'Logout'}</span>
-                    </button>
                 </div>
             </aside>
 

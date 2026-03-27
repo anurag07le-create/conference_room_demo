@@ -42,20 +42,20 @@ const StatCard = ({
 
     return (
         <div className={`
-            relative p-6 rounded-[32px] border transition-all duration-300 shadow-premium group overflow-hidden
+            relative p-4 md:p-6 rounded-[28px] md:rounded-[32px] border transition-all duration-300 shadow-premium group overflow-hidden
             ${variants[variant]}
             ${className}
         `}>
             {/* Background Decoration */}
-            <div className="absolute -right-4 -top-4 w-24 h-24 bg-current opacity-[0.03] rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+            <div className="absolute -right-4 -top-4 w-16 h-16 md:w-24 md:h-24 bg-current opacity-[0.03] rounded-full group-hover:scale-150 transition-transform duration-500"></div>
 
             <div className="relative z-10 flex flex-col h-full justify-between">
-                <div className="flex items-start justify-between mb-4">
-                    <div className={`p-3 rounded-2xl transition-transform duration-300 group-hover:scale-110 ${iconBg[variant]}`}>
-                        {Icon && <Icon size={24} strokeWidth={2.5} />}
+                <div className="flex items-start justify-between mb-3 md:mb-4">
+                    <div className={`p-2 md:p-3 rounded-xl md:rounded-2xl transition-transform duration-300 group-hover:scale-110 ${iconBg[variant]}`}>
+                        {Icon && <Icon className="w-5 h-5 md:w-6 md:h-6" strokeWidth={2.5} />}
                     </div>
                     {trendValue && (
-                        <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-black uppercase tracking-wider ${getTrendColor()}`}>
+                        <div className={`flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-full border text-[9px] md:text-[11px] font-black uppercase tracking-wider ${getTrendColor()}`}>
                             {getTrendIcon()}
                             {trendValue}
                         </div>
@@ -63,16 +63,16 @@ const StatCard = ({
                 </div>
 
                 <div>
-                    <p className={`text-[12px] font-black uppercase tracking-[0.15em] mb-1 opacity-70`}>
+                    <p className={`text-[9px] md:text-[12px] font-black uppercase tracking-[0.1em] md:tracking-[0.15em] mb-0.5 md:mb-1 opacity-70 truncate`}>
                         {title}
                     </p>
                     <div className="flex items-baseline gap-2">
-                        <h3 className="text-4xl font-black tracking-tight leading-none">
+                        <h3 className="text-2xl md:text-4xl font-black tracking-tight leading-none">
                             {value}
                         </h3>
                     </div>
                     {subvalue && (
-                        <p className="mt-2 text-[13px] font-medium opacity-60">
+                        <p className="mt-1 md:mt-2 text-[10px] md:text-[13px] font-medium opacity-60 truncate">
                             {subvalue}
                         </p>
                     )}
